@@ -1,0 +1,1570 @@
+/* Reset og grunnleggende stiler */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --primary: #2c3e50;
+    --secondary: #3498db;
+    --success: #27ae60;
+    --warning: #f39c12;
+    --danger: #e74c3c;
+    --light: #ecf0f1;
+    --dark: #34495e;
+    --high: #27ae60;
+    --medium: #f39c12;
+    --low: #e74c3c;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: var(--light);
+    color: var(--dark);
+    line-height: 1.6;
+}
+
+/* Header */
+header {
+    background: var(--primary);
+    color: white;
+    padding: 1rem;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+header h1 {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.header-info {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    margin-bottom: 0.5rem;
+}
+
+.header-info span {
+    margin-right: 1rem;
+    background: rgba(255,255,255,0.1);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+nav {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.nav-btn {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.nav-btn:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+.nav-btn.active {
+    background: var(--secondary);
+}
+
+/* Views */
+.view {
+    display: none;
+    padding: 1rem;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.view.active {
+    display: block;
+}
+
+/* Kontroll panel */
+.kontroll-panel {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.kontroll-gruppe {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.kontroll-gruppe label {
+    font-weight: 500;
+}
+
+.kontroll-gruppe select {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    min-width: 120px;
+}
+
+/* Hurtigmodus */
+.hurtig-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.hurtig-layout {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 1rem;
+}
+
+.elev-liste-panel, .vurdering-panel {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.elev-liste {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.elev-item {
+    padding: 0.75rem;
+    border: 1px solid #ddd;
+    margin-bottom: 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.elev-item:hover {
+    background: var(--light);
+    border-color: var(--secondary);
+}
+
+.elev-item.valgt {
+    background: var(--secondary);
+    color: white;
+    border-color: var(--secondary);
+}
+
+.elev-item.neste {
+    border: 2px dashed var(--secondary);
+}
+
+/* Vurderingsskjema */
+.vurdering-skjema {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.skjema-gruppe {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.skjema-gruppe label {
+    font-weight: 500;
+    color: var(--dark);
+}
+
+.skjema-gruppe input,
+.skjema-gruppe select,
+.skjema-gruppe textarea {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 1rem;
+}
+
+.skjema-gruppe textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* Vurderingsknapper */
+.vurdering-knapper {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: space-between;
+}
+
+.vurdering-btn {
+    flex: 1;
+    padding: 1.5rem;
+    font-size: 1.5rem;
+    font-weight: bold;
+    border: 2px solid #ddd;
+    background: white;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.vurdering-btn:hover {
+    transform: scale(1.05);
+}
+
+.vurdering-btn.h {
+    border-color: var(--high);
+    color: var(--high);
+}
+
+.vurdering-btn.h:hover,
+.vurdering-btn.h.valgt {
+    background: var(--high);
+    color: white;
+}
+
+.vurdering-btn.m {
+    border-color: var(--medium);
+    color: var(--medium);
+}
+
+.vurdering-btn.m:hover,
+.vurdering-btn.m.valgt {
+    background: var(--medium);
+    color: white;
+}
+
+.vurdering-btn.l {
+    border-color: var(--low);
+    color: var(--low);
+}
+
+.vurdering-btn.l:hover,
+.vurdering-btn.l.valgt {
+    background: var(--low);
+    color: white;
+}
+
+/* Ferdighetsvelger */
+.ferdigheter-velger {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+}
+
+.ferdigheter-velger h4 {
+    margin-bottom: 0.75rem;
+    color: var(--dark);
+}
+
+.ferdigheter-checkbox {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.5rem;
+}
+
+.ferdigheter-checkbox label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.ferdigheter-checkbox input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+/* Ferdigheter panel */
+.ferdigheter-panel {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-top: 1rem;
+}
+
+.ferdigheter-panel h4 {
+    margin-bottom: 1rem;
+    color: var(--dark);
+}
+
+.ferdighet-rad {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    gap: 1rem;
+}
+
+.ferdighet-label {
+    flex: 1;
+    font-weight: 500;
+}
+
+.ferdighet-knapper {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.ferdighet-btn {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid #ddd;
+    background: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.ferdighet-btn:hover {
+    background: var(--light);
+}
+
+.ferdighet-btn.valgt {
+    background: var(--secondary);
+    color: white;
+    border-color: var(--secondary);
+}
+
+/* Elevoversikt */
+.elevoversikt-container {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.elev-velger {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.elev-detaljer {
+    padding: 1rem;
+}
+
+.fag-accordion {
+    margin-top: 1rem;
+}
+
+.fag-item {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.fag-header {
+    padding: 1rem;
+    background: var(--light);
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.fag-header:hover {
+    background: #e8eaec;
+}
+
+.fag-status {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.9rem;
+}
+
+.fag-innhold {
+    display: none;
+    padding: 1rem;
+    border-top: 1px solid #ddd;
+}
+
+.fag-innhold.aktiv {
+    display: block;
+}
+
+.vurdering-tidslinje {
+    margin-top: 1rem;
+}
+
+.tidslinje-item {
+    padding: 0.75rem;
+    border-left: 3px solid var(--secondary);
+    margin-left: 1rem;
+    margin-bottom: 1rem;
+}
+
+.tidslinje-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.tidslinje-dato {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.tidslinje-detaljer {
+    display: none;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px dashed #ddd;
+}
+
+.tidslinje-detaljer.vis {
+    display: block;
+}
+
+/* Klasseoversikt */
+.oversikt-container {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.oversikt-kontroller {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+.oversikt-tabell {
+    overflow-x: auto;
+}
+
+.oversikt-tabell table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.oversikt-tabell th,
+.oversikt-tabell td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid #ddd;
+}
+
+.oversikt-tabell th {
+    background: var(--light);
+    font-weight: 600;
+}
+
+.oversikt-tabell tr:hover {
+    background: #f8f9fa;
+}
+
+.oversikt-tabell .mangler-vurdering {
+    background: #fff3cd;
+}
+
+.vurdering-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.vurdering-badge.h {
+    background: var(--high);
+    color: white;
+}
+
+.vurdering-badge.m {
+    background: var(--medium);
+    color: white;
+}
+
+.vurdering-badge.l {
+    background: var(--low);
+    color: white;
+}
+
+/* Historikk */
+.historikk-container {
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.historikk-filter {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.historikk-filter input,
+.historikk-filter select {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    width: 100%;
+}
+
+.historikk-liste {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.historikk-item {
+    padding: 1rem;
+    border: 1px solid #ddd;
+    margin-bottom: 0.5rem;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.historikk-item:hover {
+    background: var(--light);
+}
+
+.historikk-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+}
+
+.historikk-elev {
+    font-weight: 600;
+}
+
+.historikk-dato {
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.historikk-detaljer {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    font-size: 0.95rem;
+}
+
+.historikk-detaljer span {
+    background: var(--light);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+}
+
+/* Innstillinger */
+.innstillinger-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.innstilling-gruppe {
+    background: white;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.innstilling-gruppe h3 {
+    margin-bottom: 1rem;
+    color: var(--primary);
+}
+
+.innstilling-rad {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.fagliste {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.fag-tag {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--light);
+    padding: 0.5rem;
+    border-radius: 4px;
+}
+
+.fag-tag button {
+    background: var(--danger);
+    color: white;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.legg-til-fag {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.legg-til-fag input {
+    flex: 1;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+/* Knapper */
+.btn-primary {
+    background: var(--secondary);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: all 0.2s;
+}
+
+.btn-primary:hover {
+    background: #2980b9;
+}
+
+.btn-secondary {
+    background: var(--dark);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    margin-left: 0.5rem;
+}
+
+.btn-success {
+    background: var(--success);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.btn-small {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.9rem;
+}
+
+.lagre-btn {
+    background: var(--success);
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: 600;
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.lagre-btn:hover {
+    background: #229954;
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+}
+
+.modal-content {
+    background: white;
+    margin: 5% auto;
+    padding: 2rem;
+    border-radius: 8px;
+    max-width: 700px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.close {
+    float: right;
+    font-size: 2rem;
+    font-weight: bold;
+    cursor: pointer;
+    color: #999;
+}
+
+.close:hover {
+    color: #333;
+}
+
+/* Oppsummering */
+.oppsummering-tekstfelt {
+    width: 100%;
+    min-height: 300px;
+    padding: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 1rem;
+    margin: 1rem 0;
+}
+
+.oppsummering-kontroller {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+/* Toast meldinger */
+.toast {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    background: var(--success);
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 4px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    display: none;
+    z-index: 2000;
+}
+
+.toast.show {
+    display: block;
+    animation: slideIn 0.3s ease;
+}
+
+.toast.error {
+    background: var(--danger);
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* Responsiv design */
+@media (max-width: 768px) {
+    .hurtig-layout {
+        grid-template-columns: 1fr;
+    }
+    
+    .kontroll-panel {
+        flex-direction: column;
+    }
+    
+    .oversikt-kontroller {
+        flex-direction: column;
+    }
+    
+    .historikk-filter {
+        grid-template-columns: 1fr;
+    }
+    
+    .vurdering-btn {
+        padding: 1rem;
+        font-size: 1.2rem;
+    }
+    
+    .oversikt-tabell {
+        font-size: 0.9rem;
+    }
+    
+    .modal-content {
+        margin: 10% 1rem;
+        padding: 1rem;
+    }
+}
+
+/* Hjelpetekster */
+.hjelpetekst {
+    color: #666;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+}
+
+.advarsel {
+    color: var(--danger);
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+}
+
+.ingen-elev {
+    text-align: center;
+    color: #999;
+    padding: 2rem;
+    font-style: italic;
+}
+
+/* Utskrift */
+@media print {
+    header, nav, .innstilling-gruppe.fare {
+        display: none;
+    }
+    
+    .view {
+        display: block !important;
+    }
+}
+.tekstforslag {
+    background: #f8f9fa;
+    border: 1px dashed #ccc;
+    border-radius: 6px;
+    padding: 0.75rem;
+    min-height: 48px;
+    white-space: pre-wrap;
+}
+
+.slutt-oversikt {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 0.75rem;
+    border: 1px solid #eee;
+}
+
+.slutt-intervall {
+    font-size: 1.2rem;
+    font-weight: 700;
+    padding: 0.5rem 0.75rem;
+    background: #e8f4ff;
+    border-radius: 6px;
+    display: inline-block;
+}
+
+.karakter-valg {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.karakter-valg label {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--light);
+    padding: 0.4rem 0.6rem;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.listeboks {
+    width: 100%;
+    padding: 0.5rem;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+}
+
+.lp-admin summary {
+    cursor: pointer;
+    margin-top: 0.5rem;
+    font-weight: 600;
+}
+
+
+/* Pedagogiske bokser */
+.pedagogikk-boks {
+    margin-top: 0.6rem;
+    padding: 0.6rem 0.7rem;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, 0.04);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    color: #2c3e50;
+    font-size: 0.92rem;
+}
+
+.verb-hjelp {
+    margin-top: 0.5rem;
+    padding: 0.6rem 0.7rem;
+    border-radius: 8px;
+    background: rgba(52, 152, 219, 0.10);
+    border: 1px solid rgba(52, 152, 219, 0.25);
+    color: #2c3e50;
+    font-size: 0.92rem;
+    line-height: 1.35;
+}
+
+/* ========== NYE FUNKSJONER V3 ========== */
+
+/* Søkeboks med ikon */
+.sok-boks {
+    margin-bottom: 1rem;
+}
+
+.sok-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s;
+}
+
+.sok-input:focus {
+    outline: none;
+    border-color: var(--secondary);
+}
+
+/* Ferdighetsikoner */
+.ferdighet-ikon {
+    font-size: 1.2rem;
+    margin-right: 0.5rem;
+}
+
+.ferdighet-muntlig::before { content: "📣 "; }
+.ferdighet-skrive::before { content: "✍️ "; }
+.ferdighet-lese::before { content: "📖 "; }
+.ferdighet-rekne::before { content: "🔢 "; }
+.ferdighet-digital::before { content: "💻 "; }
+
+/* Ferdighetsfargekoding */
+.ferdighet-hoy {
+    background: linear-gradient(135deg, #27ae60, #2ecc71);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.ferdighet-middels {
+    background: linear-gradient(135deg, #f39c12, #f1c40f);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.ferdighet-lav {
+    background: linear-gradient(135deg, #e74c3c, #e67e73);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+/* Statistikk-kort */
+.statistikk-kort-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 2rem 0;
+}
+
+.statistikk-kort {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: transform 0.2s;
+}
+
+.statistikk-kort:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.statistikk-kort.success {
+    border-left: 4px solid var(--high);
+}
+
+.statistikk-kort.warning {
+    border-left: 4px solid var(--low);
+}
+
+.kort-ikon {
+    font-size: 2.5rem;
+}
+
+.kort-innhold h4 {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #666;
+    font-weight: 500;
+}
+
+.stat-tall {
+    margin: 0.25rem 0 0 0;
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--primary);
+}
+
+/* Grafikk-seksjon */
+.grafikk-oversikt-container {
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.grafikk-kontroller {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.grafikk-seksjon {
+    background: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+.grafikk-seksjon h3 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    color: var(--primary);
+}
+
+.grafikk-container {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.graf-velger {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+}
+
+.graf-velger label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.graf-velger label:hover {
+    background: white;
+}
+
+/* Heatmap */
+#heatmap-container {
+    display: grid;
+    gap: 0.25rem;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    overflow-x: auto;
+}
+
+.heatmap-row {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+.heatmap-label {
+    min-width: 120px;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.heatmap-cell {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    transition: transform 0.2s;
+    cursor: pointer;
+}
+
+.heatmap-cell:hover {
+    transform: scale(1.1);
+    z-index: 10;
+}
+
+.heatmap-cell.hoy {
+    background: #27ae60;
+    color: white;
+}
+
+.heatmap-cell.middels {
+    background: #f39c12;
+    color: white;
+}
+
+.heatmap-cell.lav {
+    background: #e74c3c;
+    color: white;
+}
+
+.heatmap-cell.ingen {
+    background: #ecf0f1;
+    color: #95a5a6;
+}
+
+/* Ferdighetsfiltrer */
+.ferdighets-filter {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+}
+
+.ferdighets-filter label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.ferdighets-filter label:hover {
+    border-color: var(--secondary);
+}
+
+.ferdighets-filter input[type="checkbox"]:checked + label,
+.ferdighets-filter label:has(input:checked) {
+    background: var(--secondary);
+    color: white;
+    border-color: var(--secondary);
+}
+
+/* Eksport-panel */
+.eksport-panel {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+}
+
+/* Autosøk-forslag */
+.autosok-forslag {
+    position: absolute;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+    width: 100%;
+}
+
+.forslag-item {
+    padding: 0.75rem;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    transition: background 0.2s;
+}
+
+.forslag-item:hover,
+.forslag-item.aktiv {
+    background: var(--light);
+}
+
+.forslag-item:last-child {
+    border-bottom: none;
+}
+
+.forslag-match {
+    font-weight: bold;
+    color: var(--secondary);
+}
+
+/* Mørk modus */
+body.dark-mode {
+    --primary: #34495e;
+    --secondary: #5dade2;
+    --light: #2c3e50;
+    --dark: #ecf0f1;
+    background: #1a1a1a;
+    color: #ecf0f1;
+}
+
+body.dark-mode header {
+    background: #2c3e50;
+}
+
+body.dark-mode .view,
+body.dark-mode .kontroll-panel,
+body.dark-mode .elev-liste-panel,
+body.dark-mode .vurdering-panel,
+body.dark-mode .elevoversikt-container,
+body.dark-mode .oversikt-container,
+body.dark-mode .historikk-container,
+body.dark-mode .innstilling-gruppe,
+body.dark-mode .statistikk-kort,
+body.dark-mode .grafikk-oversikt-container,
+body.dark-mode .grafikk-container,
+body.dark-mode .modal-content {
+    background: #2c3e50;
+    color: #ecf0f1;
+}
+
+body.dark-mode .elev-item,
+body.dark-mode .fag-item,
+body.dark-mode .historikk-item,
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+    background: #34495e;
+    color: #ecf0f1;
+    border-color: #4a5f7f;
+}
+
+body.dark-mode .elev-item:hover,
+body.dark-mode .fag-header:hover,
+body.dark-mode .historikk-item:hover {
+    background: #3d5770;
+}
+
+body.dark-mode .fag-header {
+    background: #34495e;
+}
+
+body.dark-mode .grafikk-seksjon {
+    background: #34495e;
+}
+
+body.dark-mode .statistikk-kort {
+    background: #34495e;
+}
+
+body.dark-mode .vurdering-btn {
+    background: #34495e;
+}
+
+/* Mobilforbedringer */
+@media (max-width: 768px) {
+    .hurtig-layout {
+        grid-template-columns: 1fr;
+    }
+    
+    .kontroll-panel {
+        flex-direction: column;
+    }
+    
+    .oversikt-kontroller {
+        flex-direction: column;
+    }
+    
+    .historikk-filter {
+        grid-template-columns: 1fr;
+    }
+    
+    .vurdering-btn {
+        padding: 1rem;
+        font-size: 1.2rem;
+    }
+    
+    .oversikt-tabell {
+        font-size: 0.9rem;
+    }
+    
+    .modal-content {
+        margin: 10% 1rem;
+        padding: 1rem;
+    }
+
+    .statistikk-kort-container {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .grafikk-kontroller {
+        flex-direction: column;
+    }
+
+    .eksport-panel {
+        flex-direction: column;
+    }
+
+    .eksport-panel button {
+        width: 100%;
+    }
+
+    .ferdighets-filter {
+        flex-direction: column;
+    }
+
+    /* Sticky lagre-knapp på mobil */
+    .lagre-btn {
+        position: sticky;
+        bottom: 0;
+        z-index: 100;
+    }
+
+    /* Kompakt tabell på mobil */
+    .oversikt-tabell table {
+        font-size: 0.85rem;
+    }
+
+    .oversikt-tabell th,
+    .oversikt-tabell td {
+        padding: 0.5rem 0.25rem;
+    }
+
+    /* Heatmap scroll på mobil */
+    #heatmap-container {
+        overflow-x: scroll;
+    }
+
+    .heatmap-cell {
+        width: 40px;
+        height: 40px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Små skjermer - kompakt visning */
+@media (max-width: 480px) {
+    header h1 {
+        font-size: 1.2rem;
+    }
+
+    .nav-btn {
+        font-size: 0.85rem;
+        padding: 0.4rem 0.6rem;
+    }
+
+    .statistikk-kort-container {
+        grid-template-columns: 1fr;
+    }
+
+    .kort-innhold h4 {
+        font-size: 0.8rem;
+    }
+
+    .stat-tall {
+        font-size: 1.5rem;
+    }
+}
+
+/* Kortvisning for vurderingsskjema på mobil */
+@media (max-width: 768px) {
+    .vurdering-skjema {
+        padding: 0.5rem;
+    }
+
+    .skjema-gruppe {
+        margin-bottom: 0.75rem;
+    }
+
+    .skjema-gruppe label {
+        font-size: 0.9rem;
+    }
+
+    .vurdering-knapper {
+        position: sticky;
+        bottom: 0;
+        background: white;
+        padding: 0.5rem;
+        margin: -0.5rem;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    }
+
+    body.dark-mode .vurdering-knapper {
+        background: #2c3e50;
+    }
+}
+
+/* Klasseoversikt-tabell i innstillingar */
+.klasseoversikt-tabell {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+.klasseoversikt-tabell thead {
+    background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+    color: white;
+}
+
+.klasseoversikt-tabell th {
+    padding: 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.klasseoversikt-tabell tbody tr {
+    border-bottom: 1px solid #ecf0f1;
+    transition: background-color 0.2s;
+}
+
+.klasseoversikt-tabell tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.klasseoversikt-tabell td {
+    padding: 0.75rem;
+}
+
+.klasseoversikt-tabell td:first-child {
+    font-weight: 500;
+}
+
+.klasseoversikt-tabell .btn-sm {
+    padding: 0.4rem 0.8rem;
+    font-size: 0.85rem;
+}
+
+/* Mørk modus for klasseoversikt */
+body.dark-mode .klasseoversikt-tabell tbody tr {
+    border-bottom: 1px solid #34495e;
+}
+
+body.dark-mode .klasseoversikt-tabell tbody tr:hover {
+    background-color: #34495e;
+}
+
+/* Support-knapp i header */
+.support-btn {
+    background: transparent;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 1.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 1rem;
+    transition: all 0.3s ease;
+}
+
+.support-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: scale(1.1);
+}
+
+/* Support-faner */
+.support-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 2px solid #ecf0f1;
+}
+
+.support-tab {
+    padding: 0.75rem 1.5rem;
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    font-weight: 500;
+    color: #7f8c8d;
+    transition: all 0.3s ease;
+}
+
+.support-tab:hover {
+    color: #2980b9;
+    background: #f8f9fa;
+}
+
+.support-tab.active {
+    color: #2980b9;
+    border-bottom-color: #2980b9;
+}
+
+.support-tab-content {
+    display: none;
+}
+
+.support-tab-content.active {
+    display: block;
+}
+
+.support-tab-content h3 {
+    color: #2c3e50;
+    margin-top: 0;
+}
+
+.support-tab-content h4 {
+    color: #34495e;
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.support-tab-content ul {
+    padding-left: 1.5rem;
+}
+
+.support-tab-content li {
+    margin: 0.5rem 0;
+}
+
+/* Mørk modus for support */
+body.dark-mode .support-tab-content h3,
+body.dark-mode .support-tab-content h4 {
+    color: #ecf0f1;
+}
+
+body.dark-mode .support-tab {
+    color: #95a5a6;
+}
+
+body.dark-mode .support-tab:hover {
+    color: #3498db;
+    background: #34495e;
+}
+
+body.dark-mode .support-tab.active {
+    color: #3498db;
+}
+
+body.dark-mode .support-tabs {
+    border-bottom-color: #34495e;
+}

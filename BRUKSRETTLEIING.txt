@@ -1,0 +1,226 @@
+BRUKSRETTLEIING VURDERINGSAPP V3
+
+================================================================================
+HURTIGMODUS
+================================================================================
+
+1 Grunnleggjande bruk
+Vel klasse, skoleår og semester
+Søk etter elev med søkefeltet (fuzzy matching støttes)
+Klikk på elev for å starte vurdering
+
+2 Vel fag
+Om faget har læreplan i innstillingar får du val for:
+- Kjerneelement
+- Kompetansemål
+- Grunnferdigheit
+
+3 Verbhjelp og autotekst
+Når du vel kompetansemål kjem verbhjelp fram
+Trykk H, M eller L og kommentarfeltet blir automatisk fylt ut
+Byter du mellom H M L blir autoteksten oppdatert så lenge du ikkje har byrja å skrive
+
+4 Automatisk ferdigheitsflagging (NYT I V3)
+Om aktivert i innstillingar vil relevante ferdigheiter bli foreslått basert på kompetansemål
+Du kan velje å godta eller endre forslagene
+
+5 Lagring
+Vurderinga lagrar både ID og full tekst for:
+- Kjerneelement
+- Kompetansemål
+- Grunnferdigheit
+- Ferdigheiter (H/M/L for kvar)
+
+================================================================================
+ELEVOVERSIKT
+================================================================================
+
+1 Grunnleggjande
+Vel klasse og deretter elev
+Få oversikt over alle vurderingar for eleven
+
+2 GRAFIKK (NYT I V3)
+Når du vel ein elev får du tilgang til tre grafikk-typar:
+
+Linjegraf: Viser utvikling av kvar ferdighet over tid
+Radardiagram: Viser gjennomsnittleg ferdigheitsnivå
+Stolpediagram: Viser fordelinga H/M/L for kvar ferdighet
+
+Byt mellom graftypar med radioknappane
+
+3 Vis meir-funksjon
+Klikk "Vis meir" for å sjå:
+- Kjerneelement
+- Kompetansemål
+- Grunnferdigheit
+i ei grå pedagogikkboks
+
+================================================================================
+KLASSEOVERSIKT
+================================================================================
+
+1 Filter
+Vel klasse, fag, skoleår, semester og sortering
+Tabellen oppdaterer seg automatisk
+
+2 EKSPORT (NYT I V3)
+📥 Eksporter til Excel: Få alle vurderingar i Excel-format
+📄 Eksporter til PDF: Få profesjonell PDF-rapport
+
+Tips: Vel riktig filter før eksport!
+
+================================================================================
+GRAFIKK-FANE (NYT I V3)
+================================================================================
+
+1 Statistikk-kort
+Øvst ser du fire kort med nøkkeltal:
+- Totalt elevar
+- Antal vurderingar
+- Høg måloppnåelse (%)
+- Treng oppfølging (%)
+
+2 Ferdighets-oversikt
+Stolpediagram som viser fordelinga H/M/L for alle ferdigheiter
+
+3 Heatmap
+Interaktiv heatmap med:
+- Elevar på rada
+- Ferdigheiter på kolonnar
+- Fargekoding (grøn=høg, gul=middels, raud=lav)
+- Hover for detaljar
+
+4 Trendgraf
+Linjegraf som viser utvikling over tid
+- Gruppert per månad
+- Viser prosentdel for kvart nivå
+
+================================================================================
+HISTORIKK
+================================================================================
+
+1 Søk og filter
+Søk i elevar, tema og kommentarar
+Filtrer på klasse, fag, skoleår, semester og dato
+
+2 FERDIGHEITSFILTER (NYT I V3)
+Kryss av for å filtrere på spesifikke ferdigheiter:
+📣 Muntlig
+✍️ Skrive
+📖 Lese
+🔢 Rekne
+💻 Digital
+
+3 Resultat
+Klikk på vurdering for å sjå detaljar og redigere
+
+================================================================================
+INNSTILLINGER
+================================================================================
+
+1 Grunninnstillingar
+- Skulens namn
+- Skoleår og semester
+- 🌙 Mørk modus (NYT I V3)
+- ✨ Automatisk ferdigheitsflagging (NYT I V3)
+
+2 Klasser og fag
+Legg til, rediger og slett klasser og fag
+
+3 Læreplanar
+Last opp læreplan-dokument (PDF eller DOCX)
+Appen parsar automatisk kompetansemål
+
+4 Backup
+- Eksporter data: Last ned komplett JSON-backup
+- Importer data: Gjenopprett frå backup
+
+5 Farleg sone
+Slett klasser, elevar eller alt (vær forsiktig!)
+
+================================================================================
+NYE FUNKSJONAR I V3
+================================================================================
+
+✅ Grafikk og visualisering
+- Chart.js-integrasjon
+- Linjegraf, stolpediagram, radardiagram
+- Heatmap for ferdighetsversikt
+- Trendgraf for utvikling over tid
+
+✅ Autosøk
+- Fuzzy matching i elevsøk
+- Raskare å finne elevar
+
+✅ Eksport
+- Excel-eksport (.xlsx)
+- PDF-rapport med autoTable
+
+✅ Mørk modus
+- Reduserer augebelastning
+- Moderne utsjånad
+- Lagrar preferanse
+
+✅ Forbedra ferdighetsvisning
+- Ikoner for kvar ferdighet (📣 ✍️ 📖 🔢 💻)
+- Fargekoding (grøn/gul/raud)
+- Gradient-effektar
+
+✅ Automatisk ferdigheitsflagging
+- Intelligent forslag basert på kompetansemål
+- Analyser nøkkelord
+- Du avgjer kva som skal inkluderast
+
+✅ Mobiloptimalisering
+- Sticky lagre-knapp
+- Kortvisning
+- Responsiv heatmap
+- Touch-venleg
+
+================================================================================
+TIPS OG TRIKS
+================================================================================
+
+1. Bruk autosøk for å finne elevar raskt
+2. Aktiver automatisk ferdigheitsflagging for konsistens
+3. Sjekk grafikk-fana regelmessig for å oppdage trendar
+4. Eksporter data etter kvart semester som backup
+5. Bruk heatmap for å identifisere elevar som treng ekstra støtte
+6. Radardiagram er perfekt for elevsamtalar
+7. Trendgraf er kraftfull for foreldremøte
+
+================================================================================
+TASTATURSNARVEGAR
+================================================================================
+
+I hurtigmodus:
+H - Vel nivå Høg
+M - Vel nivå Middels
+L - Vel nivå Lav
+Enter - Lagre når du ikkje skriv i tekstfelt
+
+================================================================================
+TEKNISKE DETALJAR
+================================================================================
+
+Database: IndexedDB (lokal lagring)
+Grafikk: Chart.js 4.4.0
+Søk: Fuse.js 7.0
+Excel: SheetJS (XLSX)
+PDF: jsPDF 2.5.1 + autoTable
+PWA: Service Worker med offline-støtte
+
+All data lagres kun lokalt på eininga di.
+Ingen data sendast til internett.
+
+================================================================================
+SUPPORT
+================================================================================
+
+For spørsmål og tilbakemelding:
+Hans Petter Brunstad Sørensen
+Alpindata
+
+Versjon: 3.0.0
+Dato: 2026-01-15
+

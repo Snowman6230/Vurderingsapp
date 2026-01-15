@@ -1,0 +1,27 @@
+{
+  "name": "Vurderingsapp v3",
+  "short_name": "Vurdering v3",
+  "description": "Avansert vurderingsapp for lærarar med grafikk og AI-assistanse",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ecf0f1",
+  "theme_color": "#2c3e50",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": [
+    "education",
+    "productivity"
+  ]
+}

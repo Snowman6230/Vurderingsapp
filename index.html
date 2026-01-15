@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vurderingsapp v3</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <meta name="theme-color" content="#2c3e50">
+    <meta name="description" content="Avansert vurderingsapp for lærere med grafikk og AI-assistanse">
+    
+    <!-- Chart.js for grafikk -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <!-- jsPDF og autoTable for PDF-eksport -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    
+    <!-- SheetJS for Excel-eksport -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- PDF og DOCX parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    
+    <!-- Fuse.js for fuzzy search -->
+    <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header>
+            <h1 style="display:flex; align-items:center; gap:10px;">
+                <img src="icon-192.png" alt="Alpindata ikon" style="height:28px; width:28px;">
+                Vurderingsapp v3
+            </h1>
+            <h2 style="font-style: italic; color: #7ec8ff; font-size: 14px; margin-top: 4px;">
+                © Alpindata, Hans Petter Brunstad Sørensen
+            </h2>
+            <div class="header-info">
+                <span id="skoleaar-visning"></span>
+                <span id="semester-visning"></span>
+                <button id="support-btn" class="support-btn" title="Hjelp og støtte">❓</button>
+            </div>
+            <nav>
+                <button class="nav-btn active" data-view="hurtigmodus">⚡ Hurtigmodus</button>
+                <button class="nav-btn" data-view="elevoversikt">👤 Elevoversikt</button>
+                <button class="nav-btn" data-view="klasseoversikt">📊 Klasseoversikt</button>
+                <button class="nav-btn" data-view="grafikk">📈 Grafikk</button>
+                <button class="nav-btn" data-view="historikk">📜 Historikk</button>
+                <button class="nav-btn" data-view="innstillinger">⚙️ Innstillinger</button>
+                <button class="nav-btn" data-view="hjelp" style="margin-left: auto; background: #27ae60; color: white;">❓ Hjelp</button>
+            </nav>
+        </header>
+
+        <!-- Hovedinnhold -->
+        <main id="main-content">
+            
+            <!-- Hurtigmodus -->
+            <section id="hurtigmodus" class="view active">
+                <div class="hurtig-container">
+                    <div class="kontroll-panel">
+                        <div class="kontroll-gruppe">
+                            <label>Klasse:</label>
+                            <select id="hurtig-klasse">
+                                <option value="">-- Velg klasse --</option>
+                            </select>
+                        </div>
+                        <div class="kontroll-gruppe">
+                            <label>Skoleår:</label>
+                            <select id="hurtig-skoleaar"></select>
+                        </div>
+                        <div class="kontroll-gruppe">
+                            <label>Semester:</label>
+                            <select id="hurtig-semester">
+                                <option value="Høst">Høst</option>
+                                <option value="Vår">Vår</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="hurtig-layout">
+                        <!-- Elevliste -->
+                        <div class="elev-liste-panel">
+                            <h3>Elever</h3>
+                            <div class="sok-boks">
+                                <input type="text" id="elev-sok" placeholder="🔍 Søk elev..." class="sok-input">
+                            </div>
+                            <div id="hurtig-elevliste" class="elev-liste"></div>
+                        </div>
+
+                        <!-- Vurderingsskjema -->
+                        <div class="vurdering-panel">
+                            <h3>Ny vurdering</h3>
+                            <div id="hurtig-skjema" class="vurdering-skjema">
+                                <p class="ingen-elev">← Velg en elev først</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Elevoversikt -->
+            <section id="elevoversikt" class="view">
+                <div class="elevoversikt-container">
+                    <div class="elev-velger">
+                        <select id="elevoversikt-klasse">
+                            <option value="">-- Velg klasse --</option>
+                        </select>
+                        <select id="elevoversikt-elev">
+                            <option value="">-- Velg elev --</option>
+                        </select>
+                    </div>
+                    
+                    <div id="elev-detaljer" class="elev-detaljer">
+                        <p>Velg en elev for å se vurderinger og utvikling</p>
+                    </div>
+
+                    <!-- Elevgrafikk -->
+                    <div id="elev-grafikk-container" class="grafikk-container" style="display:none; margin-top: 2rem;">
+                        <h3>📊 Ferdighetsutvikling</h3>
+                        <div class="graf-velger">
+                            <label>
+                                <input type="radio" name="graftype" value="line" checked> Linjegraf
+                            </label>
+                            <label>
+                                <input type="radio" name="graftype" value="radar"> Radardiagram
+                            </label>
+                            <label>
+                                <input type="radio" name="graftype" value="bar"> Stolpediagram
+                            </label>
+                        </div>
+                        <canvas id="elev-graf" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Klasseoversikt -->
+            <section id="klasseoversikt" class="view">
+                <div class="oversikt-container">
+                    <div class="oversikt-kontroller">
+                        <div class="kontroll-gruppe">
+                            <label>Klasse:</label>
+                            <select id="oversikt-klasse">
+                                <option value="">-- Velg klasse --</option>
+                            </select>
+                        </div>
+                        <div class="kontroll-gruppe">
+                            <label>Fag:</label>
+                            <select id="oversikt-fag">
+                                <option value="">-- Velg fag --</option>
+                            </select>
+                        </div>
+                        <div class="kontroll-gruppe">
+                            <label>Skoleår:</label>
+                            <select id="oversikt-skoleaar"></select>
+                        </div>
+                        <div class="kontroll-gruppe">
+                            <label>Semester:</label>
+                            <select id="oversikt-semester">
+                                <option value="">Alle</option>
+                                <option value="Høst">Høst</option>
+                                <option value="Vår">Vår</option>
+                            </select>
+                        </div>
+                        <div class="kontroll-gruppe">
+                            <label>Sortering:</label>
+                            <select id="oversikt-sortering">
+                                <option value="navn">Navn</option>
+                                <option value="dato">Sist vurdert</option>
+                                <option value="vurdering">Vurdering</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Eksport-knapper -->
+                    <div class="eksport-panel">
+                        <button id="eksport-excel" class="btn-success">📥 Eksporter til Excel</button>
+                        <button id="eksport-pdf" class="btn-success">📄 Eksporter til PDF</button>
+                    </div>
+
+                    <div id="oversikt-tabell" class="oversikt-tabell"></div>
+                </div>
+            </section>
+
+            <!-- Grafikk -->
+            <section id="grafikk" class="view">
+                <div class="grafikk-oversikt-container">
+                    <h2>📈 Statistikk og visualisering</h2>
+                    
+                    <div class="grafikk-kontroller">
+                        <div class="kontroll-gruppe">
+                            <label>Klasse:</label>
+                            <select id="grafikk-klasse">
+                                <option value="">-- Alle klasser --</option>
+                            </select>
+                        </div>
+                        <div class="kontroll-gruppe">
+                            <label>Elev:</label>
+                            <select id="grafikk-elev">
+                                <option value="">-- Alle elever --</option>
+                            </select>
+                        </div>
+                        <div class="kontroll-gruppe">
+                            <label>Fag:</label>
+                            <select id="grafikk-fag">
+                                <option value="">-- Alle fag --</option>
+                            </select>
+                        </div>
+                        <div class="kontroll-gruppe">
+                            <label>Skoleår:</label>
+                            <select id="grafikk-skoleaar"></select>
+                        </div>
+                    </div>
+
+                    <!-- Statistikk-kort -->
+                    <div class="statistikk-kort-container">
+                        <div class="statistikk-kort">
+                            <div class="kort-ikon">👥</div>
+                            <div class="kort-innhold">
+                                <h4>Totalt elever</h4>
+                                <p id="stat-elever" class="stat-tall">0</p>
+                            </div>
+                        </div>
+                        <div class="statistikk-kort">
+                            <div class="kort-ikon">✍️</div>
+                            <div class="kort-innhold">
+                                <h4>Vurderinger</h4>
+                                <p id="stat-vurderinger" class="stat-tall">0</p>
+                            </div>
+                        </div>
+                        <div class="statistikk-kort success">
+                            <div class="kort-ikon">✅</div>
+                            <div class="kort-innhold">
+                                <h4>Høy måloppnåelse</h4>
+                                <p id="stat-hoy" class="stat-tall">0%</p>
+                            </div>
+                        </div>
+                        <div class="statistikk-kort warning">
+                            <div class="kort-ikon">⚠️</div>
+                            <div class="kort-innhold">
+                                <h4>Trenger oppfølging</h4>
+                                <p id="stat-lav" class="stat-tall">0%</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ferdighets-oversikt -->
+                    <div class="grafikk-seksjon">
+                        <h3>Grunnleggende ferdigheter - Klasseoversikt</h3>
+                        <canvas id="ferdigheter-graf" width="400" height="250"></canvas>
+                    </div>
+
+                    <!-- Heatmap -->
+                    <div class="grafikk-seksjon">
+                        <h3>Heatmap - Ferdigheter per elev</h3>
+                        <div id="heatmap-container"></div>
+                    </div>
+
+                    <!-- Trendgraf -->
+                    <div class="grafikk-seksjon">
+                        <h3>Utvikling over tid</h3>
+                        <canvas id="trend-graf" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Historikk -->
+            <section id="historikk" class="view">
+                <div class="historikk-container">
+                    <div class="historikk-filter">
+                        <input type="text" id="historikk-sok" placeholder="🔍 Søk i elever, tema, kommentar...">
+                        <select id="historikk-klasse">
+                            <option value="">Alle klasser</option>
+                        </select>
+                        <select id="historikk-fag">
+                            <option value="">Alle fag</option>
+                        </select>
+                        <select id="historikk-skoleaar">
+                            <option value="">Alle skoleår</option>
+                        </select>
+                        <select id="historikk-semester">
+                            <option value="">Alle semester</option>
+                            <option value="Høst">Høst</option>
+                            <option value="Vår">Vår</option>
+                        </select>
+                        <input type="date" id="historikk-fra" placeholder="Fra dato">
+                        <input type="date" id="historikk-til" placeholder="Til dato">
+                    </div>
+
+                    <!-- Ferdighetsfiltrer -->
+                    <div class="ferdighets-filter">
+                        <label><input type="checkbox" class="ferdighet-filter" value="Muntlig"> 📣 Muntlig</label>
+                        <label><input type="checkbox" class="ferdighet-filter" value="Skrive"> ✍️ Skrive</label>
+                        <label><input type="checkbox" class="ferdighet-filter" value="Lese"> 📖 Lese</label>
+                        <label><input type="checkbox" class="ferdighet-filter" value="Rekne"> 🔢 Rekne</label>
+                        <label><input type="checkbox" class="ferdighet-filter" value="Digital"> 💻 Digital</label>
+                    </div>
+
+                    <div id="historikk-liste" class="historikk-liste"></div>
+                </div>
+            </section>
+
+            <!-- Innstillinger -->
+            <section id="innstillinger" class="view">
+                <div class="innstillinger-container">
+                    
+                    <!-- Grunninnstillinger -->
+                    <div class="innstilling-gruppe">
+                        <h3>⚙️ Grunninnstillinger</h3>
+                        
+                        <div class="innstilling-rad">
+                            <label>Skolens navn:</label>
+                            <input type="text" id="skole-navn" placeholder="Namn på skulen">
+                        </div>
+
+                        <div class="innstilling-rad">
+                            <label>Skoleår:</label>
+                            <select id="innstillinger-skoleaar"></select>
+                        </div>
+
+                        <div class="innstilling-rad">
+                            <label>Semester:</label>
+                            <select id="innstillinger-semester">
+                                <option value="Høst">Høst</option>
+                                <option value="Vår">Vår</option>
+                            </select>
+                        </div>
+
+                        <div class="innstilling-rad">
+                            <label>
+                                <input type="checkbox" id="dark-mode-toggle">
+                                🌙 Mørk modus
+                            </label>
+                        </div>
+
+                        <div class="innstilling-rad">
+                            <label>
+                                <input type="checkbox" id="auto-ferdighetsflag">
+                                ✨ Automatisk forslag til ferdigheter basert på kompetansemål
+                            </label>
+                        </div>
+
+                        <button id="lagre-innstillinger" class="btn-primary">Lagre innstillinger</button>
+                    </div>
+
+                    <!-- Klasser -->
+                    <div class="innstilling-gruppe">
+                        <h3>🏫 Klasser</h3>
+                        <div class="fagliste" id="klasseliste"></div>
+                        <div class="legg-til-fag">
+                            <label for="ny-klasse" style="font-weight: 500;">Legg til klasser:</label>
+                            <textarea id="ny-klasse" placeholder="Skriv éin klasse per linje, eller bruk komma:
+Vg1A
+Vg1B
+2ST1, 3ST1, 3ST2
+Geografi VG1" rows="4" style="width: 100%; font-family: inherit; padding: 0.5rem; border: 1px solid #bdc3c7; border-radius: 4px; margin-bottom: 0.5rem;"></textarea>
+                            <p class="hjelpetekst" style="margin-bottom: 0.5rem;">💡 Tips: Skriv éin klasse per linje, eller separer med komma</p>
+                            <button id="legg-til-klasse" class="btn-success">Legg til alle klasser</button>
+                        </div>
+                        
+                        <hr style="margin: 1.5rem 0; opacity: 0.3;">
+                        
+                        <div style="margin-top: 1rem;">
+                            <label style="font-weight: 500;">📤 Last opp klasser frå CSV-fil:</label>
+                            <p class="hjelpetekst">CSV-fila må ha kolonnen "Klasse" eller "Navn" i første linje</p>
+                            
+                            <!-- Nedlastbar mal -->
+                            <div style="margin: 0.75rem 0; padding: 0.75rem; background: #e8f5e9; border-radius: 4px; border-left: 3px solid #4caf50;">
+                                <strong>📥 Last ned mal:</strong> 
+                                <a href="#" id="last-ned-csv-mal" style="color: #2980b9; text-decoration: underline; margin-left: 0.5rem;">klasser-mal.csv</a>
+                                <p class="hjelpetekst" style="margin-top: 0.5rem; margin-bottom: 0;">Malen inneheld døme på riktig format</p>
+                            </div>
+                            
+                            <!-- Eksempel -->
+                            <details style="margin: 0.75rem 0;">
+                                <summary style="cursor: pointer; font-weight: 500; color: #2980b9;">💡 Vis eksempel på CSV-format</summary>
+                                <pre style="background: #f8f9fa; padding: 0.75rem; border-radius: 4px; margin-top: 0.5rem; font-size: 0.9rem; overflow-x: auto;">Klasse
+Vg1A
+Vg1B
+2ST1
+3ST1
+Geografi VG1</pre>
+                            </details>
+                            
+                            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                                <input type="file" id="csv-klasse-upload" accept=".csv" style="flex: 1;">
+                                <button id="last-opp-klasser-csv" class="btn-secondary">Last opp</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fag -->
+                    <div class="innstilling-gruppe">
+                        <h3>📚 Fag</h3>
+                        <div class="fagliste" id="fagliste"></div>
+                        <div class="legg-til-fag">
+                            <input type="text" id="nytt-fag" placeholder="Nytt fag">
+                            <button id="legg-til-fag" class="btn-success">Legg til</button>
+                        </div>
+                    </div>
+
+                    <!-- Læreplanadministrasjon -->
+                    <div class="innstilling-gruppe lp-admin">
+                        <h3>📋 Læreplanar</h3>
+                        
+                        <!-- Kople læreplan til fag -->
+                        <div style="background: #e8f4ff; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                            <h4 style="margin-top: 0; margin-bottom: 1rem;">Kople læreplan til fag</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.5rem; align-items: end;">
+                                <div>
+                                    <label style="font-weight: 500; display: block; margin-bottom: 0.25rem;">Fag:</label>
+                                    <select id="lp-kople-fag" class="listeboks"></select>
+                                </div>
+                                <div>
+                                    <label style="font-weight: 500; display: block; margin-bottom: 0.25rem;">Læreplan:</label>
+                                    <select id="lp-kople-plan" class="listeboks"></select>
+                                </div>
+                                <div>
+                                    <button id="lp-kople-btn" class="btn-success">✓ Kople</button>
+                                </div>
+                            </div>
+                            <p class="hjelpetekst">Når du koplar ein læreplan til eit fag, kan du velje kompetansemål raskt ved vurdering.</p>
+                        </div>
+                        
+                        <!-- Aktive koplingar -->
+                        <div style="background: #fff9e6; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                            <h4 style="margin-top: 0; margin-bottom: 1rem;">📊 Aktive koplingar</h4>
+                            <div id="aktive-koplingar-tabell">
+                                <p class="hjelpetekst">Ingen aktive koplingar enno</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Last opp læreplan -->
+                        <div style="background: #f0f8f0; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                            <h4 style="margin-top: 0; margin-bottom: 0.5rem;">📤 Last opp læreplan (PDF, DOCX eller JSON)</h4>
+                            <p class="hjelpetekst">Last opp læreplan frå Udir eller andre kjelder. Støttar PDF, Word (.docx) og JSON-format. Appen vil automatisk hente ut teksten og la deg velje kompetansemål.</p>
+                            <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
+                                <input type="file" id="lp-upload" accept=".pdf,.docx,.json" style="flex: 1;">
+                                <button id="lp-parse-btn" class="btn-primary">🔍 Læreplan-analyse</button>
+                            </div>
+                        </div>
+
+                        <!-- Administrer læreplanar (avansert) -->
+                        <details style="margin-top: 1.5rem;">
+                            <summary style="cursor: pointer; font-weight: 600; padding: 0.5rem; background: #f8f9fa; border-radius: 6px;">
+                                ⚙️ Administrer læreplanar (avansert)
+                            </summary>
+                            <div style="margin-top: 1rem; padding: 1rem; background: white; border: 1px solid #ddd; border-radius: 8px;">
+                                
+                                <div style="margin-bottom: 1rem;">
+                                    <label style="font-weight: 500; display: block; margin-bottom: 0.5rem;">Vel læreplan:</label>
+                                    <select id="lp-admin-velg" class="listeboks" style="margin-bottom: 0.5rem;">
+                                        <option value="">-- Vel eksisterande læreplan for redigering --</option>
+                                    </select>
+                                </div>
+                                
+                                <div style="margin-bottom: 1rem;">
+                                    <label style="font-weight: 500; display: block; margin-bottom: 0.5rem;">Fagkode (t.d. SAK01-01):</label>
+                                    <input type="text" id="lp-admin-kode" class="listeboks" placeholder="SAK01-01">
+                                </div>
+                                
+                                <div style="margin-bottom: 1rem;">
+                                    <label style="font-weight: 500; display: block; margin-bottom: 0.5rem;">Namn/tittel på læreplanen:</label>
+                                    <input type="text" id="lp-admin-tittel" class="listeboks" placeholder="t.d. Samfunnskunnskap (fellesfag Vg1/Vg2)">
+                                </div>
+                                
+                                <div style="margin-bottom: 1rem;">
+                                    <label style="font-weight: 500; display: block; margin-bottom: 0.5rem;">Kompetansemål (éitt per linje):</label>
+                                    <textarea id="lp-admin-maal" rows="10" class="listeboks" style="font-family: monospace; font-size: 0.9rem;" placeholder="utforske og presentere dagsaktuelle tema...&#10;drøfte korleis personleg økonomi påverkar...&#10;reflektere over utfordringar i samband med..."></textarea>
+                                    <p class="hjelpetekst">Skriv eitt kompetansemål per linje. Kan også inkludere kjerneelement og grunnferdigheiter.</p>
+                                </div>
+                                
+                                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                    <button id="lp-admin-ny" class="btn-secondary">Ny</button>
+                                    <button id="lp-admin-lagre" class="btn-success">Lagre</button>
+                                    <button id="lp-admin-eksporter" class="btn-primary">📥 Eksporter</button>
+                                    <button id="lp-admin-slett" class="btn-danger">Slett</button>
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+
+                    <!-- Automatiske forslag -->
+                    <div class="innstilling-gruppe">
+                        <h3>✨ Automatiske forslag</h3>
+                        <div class="innstilling-rad">
+                            <label>
+                                <input type="checkbox" id="auto-forslag-detaljvurdering">
+                                Aktiver automatisk forslag for detaljvurdering
+                            </label>
+                        </div>
+                        <p class="hjelpetekst">Når aktivert vil appen foreslå kommentartekst basert på nivå (H/M/L) og verb i kompetansemål.</p>
+                    </div>
+
+                    <!-- Varsel om manglende vurdering -->
+                    <div class="innstilling-gruppe">
+                        <h3>⏰ Varsel om manglande vurdering</h3>
+                        <div class="innstilling-rad">
+                            <label style="flex: 0 0 auto;">Marker elevar som ikkje er vurdert på:</label>
+                            <input type="number" id="varsel-dagar" value="30" min="1" max="365" style="width: 80px; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                            <span>dagar</span>
+                        </div>
+                        <p class="hjelpetekst">Elevar som ikkje har fått vurdering i det valde faget på X dagar vil bli markert i oversikta.</p>
+                    </div>
+
+                    <!-- Fagoppsummering lengde -->
+                    <div class="innstilling-gruppe">
+                        <h3>📏 Fagoppsummering lengde</h3>
+                        <div class="innstilling-rad">
+                            <label style="flex: 0 0 auto;">Føretrekt lengde på fagoppsummering:</label>
+                            <select id="oppsummering-lengde" style="padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                                <option value="kort">Kort (100-200 tegn)</option>
+                                <option value="middels" selected>Middels (200-400 tegn)</option>
+                                <option value="lang">Lang (400-600 tegn)</option>
+                            </select>
+                        </div>
+                        <p class="hjelpetekst">Bestem kor omfattande dei automatisk genererte fagoppsummeringane skal vere.</p>
+                    </div>
+
+                    <!-- Backup og gjenopprett -->
+                    <div class="innstilling-gruppe">
+                        <h3>💾 Backup og gjenopprett</h3>
+                        <div class="innstilling-rad">
+                            <button id="eksporter-data" class="btn-primary">Last ned backup</button>
+                            <label for="importer-data" class="btn-secondary">
+                                Last opp backup
+                                <input type="file" id="importer-data" accept=".json" style="display: none;">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Farlig sone -->
+                    <div class="innstilling-gruppe fare">
+                        <h3>⚠️ Farlig sone</h3>
+                        
+                        <div class="innstilling-rad">
+                            <strong>Slett klasse</strong>
+                        </div>
+                        <div class="slette-kontroll">
+                            <select id="slett-klasse">
+                                <option value="">Vel klasse</option>
+                            </select>
+                            <button id="btn-slett-klasse" class="btn-danger">Slett klasse</button>
+                        </div>
+
+                        <hr style="margin: 1rem 0; opacity: 0.3;">
+
+                        <div class="innstilling-rad">
+                            <strong>Slett elev</strong>
+                        </div>
+                        <div class="slette-kontroll">
+                            <select id="slett-enkel-elev">
+                                <option value="">Vel elev</option>
+                            </select>
+                            <button id="btn-slett-enkel-elev" class="btn-danger">Slett elev</button>
+                        </div>
+
+                        <hr style="margin: 1rem 0; opacity: 0.3;">
+
+                        <div class="innstilling-rad">
+                            <strong>Slett alt</strong>
+                        </div>
+                        <div class="slette-kontroll">
+                            <input type="text" id="slett-alt-tekst" placeholder="Skriv SLETT ALT for å stadfeste">
+                            <button id="slett-alt" class="btn-danger" disabled>Slett absolutt alt</button>
+                        </div>
+                    </div>
+
+                    <!-- Personvern -->
+                    <div class="innstilling-gruppe">
+                        <h3>ℹ️ Personvern</h3>
+                        <p>All data lagres kun lokalt på denne enheten. Ingen data sendes til internett.</p>
+                        <p><strong>Versjon:</strong> 3.0.0 med AI-assistert vurdering og grafikk</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- HJELP-SEKSJON -->
+            <section id="hjelp" class="view">
+                <div class="container">
+                    <h2>❓ Hjelp og support</h2>
+                    
+                    <!-- Om Vurderingsappen -->
+                    <div class="innstilling-gruppe">
+                        <h3>📱 Om Vurderingsappen v3</h3>
+                        <p><strong>Vurderingsappen</strong> er ein kraftig verktøy for lærarar som ønskjer å:</p>
+                        <ul style="margin-left: 1.5rem; margin-top: 0.5rem;">
+                            <li>📝 Vurdere elevar på dei 5 grunnleggjande ferdigheitene</li>
+                            <li>📊 Visualisere elevutvikling med grafikk</li>
+                            <li>📈 Analysere klasseprestasjonar</li>
+                            <li>📄 Eksportere data til Excel og PDF</li>
+                            <li>🎯 Kople vurderingar til læreplan og kompetansemål</li>
+                        </ul>
+                        <p style="margin-top: 1rem;"><strong>Versjon:</strong> 3.0.0</p>
+                        <p><strong>Utvikla av:</strong> Hans Petter Brunstad Sørensen, Alpindata</p>
+                    </div>
+                    
+                    <!-- Hurtigstart -->
+                    <div class="innstilling-gruppe">
+                        <h3>🚀 Hurtigstart</h3>
+                        <ol style="margin-left: 1.5rem;">
+                            <li><strong>Gå til Innstillingar</strong> og legg til klasser og fag</li>
+                            <li><strong>Last opp læreplan</strong> (valfritt, men anbefalt)</li>
+                            <li><strong>Kople læreplan til fag</strong> for å få kompetansemål</li>
+                            <li><strong>Gå til Hurtigmodus</strong> og vel klasse</li>
+                            <li><strong>Søk etter elev</strong> og start vurdering</li>
+                        </ol>
+                    </div>
+                    
+                    <!-- Bruksrettleiing -->
+                    <div class="innstilling-gruppe">
+                        <h3>📖 Bruksrettleiing</h3>
+                        <div style="background: #ecf0f1; padding: 1rem; border-radius: 6px; max-height: 400px; overflow-y: auto;">
+                            <div id="bruksrettleiing-innhald">
+                                <p>Lastar bruksrettleiing...</p>
+                            </div>
+                        </div>
+                        <button id="last-ned-bruksrettleiing" class="btn-secondary" style="margin-top: 0.75rem;">📥 Last ned bruksrettleiing (.txt)</button>
+                    </div>
+                    
+                    <!-- README -->
+                    <div class="innstilling-gruppe">
+                        <h3>📚 Fullstendig dokumentasjon (README)</h3>
+                        <div style="background: #ecf0f1; padding: 1rem; border-radius: 6px; max-height: 400px; overflow-y: auto;">
+                            <div id="readme-innhald">
+                                <p>Lastar dokumentasjon...</p>
+                            </div>
+                        </div>
+                        <button id="last-ned-readme" class="btn-secondary" style="margin-top: 0.75rem;">📥 Last ned README (.md)</button>
+                    </div>
+                    
+                    <!-- Tastatursnarvegar -->
+                    <div class="innstilling-gruppe">
+                        <h3>⌨️ Tastatursnarvegar</h3>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr style="background: #34495e; color: white;">
+                                <th style="padding: 0.5rem; text-align: left;">Tast</th>
+                                <th style="padding: 0.5rem; text-align: left;">Funksjon</th>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #ddd;"><kbd style="background: #ecf0f1; padding: 0.25rem 0.5rem; border-radius: 3px; font-family: monospace;">H</kbd></td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #ddd;">Vel nivå <strong>Høg</strong> i hurtigmodus</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #ddd;"><kbd style="background: #ecf0f1; padding: 0.25rem 0.5rem; border-radius: 3px; font-family: monospace;">M</kbd></td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #ddd;">Vel nivå <strong>Middels</strong> i hurtigmodus</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #ddd;"><kbd style="background: #ecf0f1; padding: 0.25rem 0.5rem; border-radius: 3px; font-family: monospace;">L</kbd></td>
+                                <td style="padding: 0.5rem; border-bottom: 1px solid #ddd;">Vel nivå <strong>Lav</strong> i hurtigmodus</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.5rem;"><kbd style="background: #ecf0f1; padding: 0.25rem 0.5rem; border-radius: 3px; font-family: monospace;">Enter</kbd></td>
+                                <td style="padding: 0.5rem;">Lagre vurdering (når du ikkje skriv i tekstfelt)</td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <!-- Tips og triks -->
+                    <div class="innstilling-gruppe">
+                        <h3>💡 Tips og triks</h3>
+                        <ul style="margin-left: 1.5rem;">
+                            <li>🔍 <strong>Bruk autosøk</strong> for å finne elevar raskt</li>
+                            <li>✨ <strong>Aktiver automatisk ferdigheitsflagging</strong> for konsistens</li>
+                            <li>📊 <strong>Sjekk grafikk-fana</strong> regelmessig for å oppdage trendar</li>
+                            <li>💾 <strong>Eksporter data</strong> etter kvart semester som backup</li>
+                            <li>🔥 <strong>Bruk heatmap</strong> for å identifisere elevar som treng ekstra støtte</li>
+                            <li>📈 <strong>Radardiagram</strong> er perfekt for elevsamtalar</li>
+                            <li>📉 <strong>Trendgraf</strong> er kraftfull for foreldremøte</li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Kontakt -->
+                    <div class="innstilling-gruppe">
+                        <h3>📞 Kontakt</h3>
+                        <p><strong>Hans Petter Brunstad Sørensen</strong></p>
+                        <p>Alpindata</p>
+                        <p style="margin-top: 1rem;">For spørsmål, tilbakemeldingar eller feilrapportar, ta kontakt!</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modaler -->
+    
+    <!-- Modal for detaljredigering -->
+    <div id="detalj-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Rediger vurdering</h2>
+            <div id="detalj-innhold"></div>
+        </div>
+    </div>
+
+    <!-- Modal for fagoppsummering -->
+    <div id="oppsummering-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-oppsummering close">&times;</span>
+            <h2>Fagoppsummering</h2>
+            <div id="oppsummering-innhold"></div>
+        </div>
+    </div>
+
+    <!-- Modal for sluttvurdering -->
+    <div id="sluttvurdering-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="sluttvurdering-close">&times;</span>
+            <h2>Sluttvurdering i faget</h2>
+
+            <div class="skjema-gruppe">
+                <label>Elev</label>
+                <div id="sluttv-elevinfo" class="header-info"></div>
+            </div>
+
+            <div class="skjema-gruppe">
+                <label>Fag</label>
+                <select id="sluttv-fag"></select>
+            </div>
+
+            <div class="skjema-gruppe">
+                <label>Skoleår og semester</label>
+                <div class="slette-kontroll">
+                    <input type="text" id="sluttv-skoleaar" placeholder="2025–2026">
+                    <select id="sluttv-semester">
+                        <option value="Høst">Høst</option>
+                        <option value="Vår">Vår</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="skjema-gruppe">
+                <label>Oversikt (vekta teljing)</label>
+                <div id="sluttv-oversikt" class="slutt-oversikt"></div>
+            </div>
+
+            <div class="skjema-gruppe">
+                <label>Føreslått karakterintervall</label>
+                <div id="sluttv-intervall" class="slutt-intervall"></div>
+                <div id="sluttv-grunnlag" class="hjelpetekst"></div>
+            </div>
+
+            <div class="skjema-gruppe">
+                <label>Vel endeleg karakter</label>
+                <div class="karakter-valg" id="sluttv-karaktervalg">
+                    <label><input type="radio" name="sluttv-kar" value="1">1</label>
+                    <label><input type="radio" name="sluttv-kar" value="2">2</label>
+                    <label><input type="radio" name="sluttv-kar" value="3">3</label>
+                    <label><input type="radio" name="sluttv-kar" value="4">4</label>
+                    <label><input type="radio" name="sluttv-kar" value="5">5</label>
+                    <label><input type="radio" name="sluttv-kar" value="6">6</label>
+                </div>
+            </div>
+
+            <div class="skjema-gruppe">
+                <label for="sluttv-tekst">Sluttvurdering</label>
+                <textarea id="sluttv-tekst" class="oppsummering-tekstfelt"></textarea>
+            </div>
+
+            <div class="vurdering-knapper">
+                <button id="sluttv-lagre" class="lagre-btn">✓ Lagre sluttvurdering</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for læreplanparsing -->
+    <div id="lp-parse-modal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <span class="close" id="lp-parse-close">&times;</span>
+            <h2>Vel kompetansemål frå dokument</h2>
+            
+            <div style="margin-bottom: 1rem;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div>
+                        <label style="font-weight: 500;">Fagkode (valfritt):</label>
+                        <input type="text" id="lp-parse-kode" placeholder="t.d. SAK01-01" class="listeboks">
+                    </div>
+                    <div>
+                        <label style="font-weight: 500;">Tittel på læreplanen:</label>
+                        <input type="text" id="lp-parse-tittel" placeholder="t.d. Samfunnskunnskap Vg1" class="listeboks">
+                    </div>
+                </div>
+                
+                <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; margin-bottom: 1rem;">
+                    <h4 style="margin-bottom: 0.5rem;">Tips:</h4>
+                    <ul style="margin-left: 1.5rem; font-size: 0.9rem;">
+                        <li>Appen har automatisk valt linjer som ser ut som kompetansemål</li>
+                        <li>Kryss av dei linjene du vil ha med som kompetansemål</li>
+                    </ul>
+                </div>
+
+                <div style="margin-bottom: 0.5rem; display: flex; justify-content: space-between;">
+                    <label style="font-weight: 500;">Tekst frå dokument:</label>
+                    <div>
+                        <button id="lp-parse-select-all" class="btn-secondary btn-small">Merk alle</button>
+                        <button id="lp-parse-deselect-all" class="btn-secondary btn-small">Avmerk alle</button>
+                    </div>
+                </div>
+                
+                <div id="lp-parse-content" style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px; padding: 1rem; background: white;"></div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button id="lp-parse-cancel" class="btn-secondary">Avbryt</button>
+                <button id="lp-parse-save" class="btn-success">✓ Lagre læreplan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Support Modal -->
+    <div id="support-modal" class="modal">
+        <div class="modal-innhold" style="max-width: 700px; max-height: 80vh; overflow-y: auto;">
+            <span class="lukk-modal" id="lukk-support">&times;</span>
+            <h2 style="color: #2980b9; margin-bottom: 1.5rem;">📚 Hjelp og støtte</h2>
+            
+            <!-- Faner -->
+            <div class="support-tabs">
+                <button class="support-tab active" data-tab="om">ℹ️ Om appen</button>
+                <button class="support-tab" data-tab="bruksrettleiing">📖 Bruksrettleiing</button>
+                <button class="support-tab" data-tab="readme">📄 README</button>
+            </div>
+            
+            <!-- Om appen -->
+            <div id="support-om" class="support-tab-content active">
+                <h3>Vurderingsapp v3.0.1</h3>
+                <p><strong>Utvikla av:</strong> Hans Petter Brunstad Sørensen, Alpindata</p>
+                <p><strong>Versjon:</strong> 3.0.1</p>
+                <p><strong>Dato:</strong> 2026-01-15</p>
+                
+                <h4 style="margin-top: 1.5rem;">Nye funksjonar i v3:</h4>
+                <ul style="line-height: 1.8;">
+                    <li>📊 Grafikk og visualisering (Chart.js)</li>
+                    <li>🔍 Autosøk med fuzzy matching (Fuse.js)</li>
+                    <li>📥 Eksport til Excel og PDF</li>
+                    <li>🌙 Mørk modus</li>
+                    <li>🎨 Ferdighetsikoner og fargekoding</li>
+                    <li>✨ Automatisk ferdigheitsflagging</li>
+                    <li>📱 Mobiloptimalisering</li>
+                    <li>🗺️ Heatmap for ferdighetsversikt</li>
+                </ul>
+                
+                <h4 style="margin-top: 1.5rem;">Tekniske detaljar:</h4>
+                <ul style="line-height: 1.8;">
+                    <li><strong>Database:</strong> IndexedDB (lokal lagring)</li>
+                    <li><strong>Grafikk:</strong> Chart.js 4.4.0</li>
+                    <li><strong>Søk:</strong> Fuse.js 7.0</li>
+                    <li><strong>Excel:</strong> SheetJS (XLSX)</li>
+                    <li><strong>PDF:</strong> jsPDF 2.5.1 + autoTable</li>
+                    <li><strong>PWA:</strong> Service Worker med offline-støtte</li>
+                </ul>
+                
+                <p style="margin-top: 1.5rem; padding: 1rem; background: #e8f5e9; border-radius: 4px; border-left: 3px solid #4caf50;">
+                    <strong>🔒 Personvern:</strong> All data lagres kun lokalt på eininga di. Ingen data sendast til internett.
+                </p>
+            </div>
+            
+            <!-- Bruksrettleiing -->
+            <div id="support-bruksrettleiing" class="support-tab-content" style="display: none;">
+                <div id="bruksrettleiing-innhald">Lastar...</div>
+            </div>
+            
+            <!-- README -->
+            <div id="support-readme" class="support-tab-content" style="display: none;">
+                <div id="readme-innhald">Lastar...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast meldinger -->
+    <div id="toast" class="toast"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
