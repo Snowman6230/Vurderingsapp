@@ -286,9 +286,212 @@ function visArkiverteVurderingar(modal, vurderingar) {
 // ========================================
 
 async function oppdaterFagoversikt() {
-    // Dette vil bli implementert i app.js
-    // Placeholder for no
-    console.log('oppdaterFagoversikt() - implementer i app.js');
+    const tbody = document.getElementById('fagoversikt-body');
+    if (!tbody) return;
+
+    try {
+        // Hent alle fag frå localStorage (midlertidig, bør flyttast til database)
+        const fagListe = await hentAlleFag();
+
+        if (fagListe.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="padding: 2rem; text-align: center; color: #95a5a6;">
+                        Ingen fag registrert enno. Gå til Innstillingar for å leggje til fag.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        // Bygg tabell-rader
+        let html = '';
+        for (const fag of fagListe) {
+            const elevtal = await hentElevtalForFag(fag.namn);
+            const verbtal = await hentVerbtalForFag(fag.namn);
+            const status = fag.aktiv ? '✓ Aktivt' : '⚠ Inaktivt';
+            const statusFarge = fag.aktiv ? '#27ae60' : '#f39c12';
+            const læreplanStatus = fag.læreplanKopla ? '✓ Kopla' : '✗ Ingen';
+            const læreplanFarge = fag.læreplanKopla ? '#27ae60' : '#95a5a6';
+
+            html += `
+                <tr style="border-bottom: 1px solid #ddd;">
+                    <td style="padding: 0.75rem; font-weight: 500;">${fag.namn}</td>
+                    <td style="padding: 0.75rem; text-align: center; color: ${statusFarge};">${status}</td>
+                    <td style="padding: 0.75rem; text-align: center; color: ${læreplanFarge};">${læreplanStatus}</td>
+                    <td style="padding: 0.75rem; text-align: center;">${elevtal}</td>
+                    <td style="padding: 0.75rem; text-align: center;">${verbtal}</td>
+                    <td style="padding: 0.75rem; text-align: center;">
+                        <button class="btn-small btn-secondary" onclick="visFagDetaljar('${fag.namn}')">Detaljar</button>
+                    </td>
+                </tr>
+            `;
+        }
+
+        tbody.innerHTML = html;
+
+    } catch (error) {
+        console.error('Feil ved oppdatering av fagoversikt:', error);
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="6" style="padding: 2rem; text-align: center; color: #e74c3c;">
+                    Feil ved lasting av fag
+                </td>
+            </tr>
+        `;
+    }
+}
+
+/**
+ * Hent alle fag (midlertidig frå localStorage, bør flyttast til database)
+ */
+async function hentAlleFag() {
+    // Midlertidig implementering
+    // Dette bør hentast frå database når fag-object store er implementert
+    const fagString = localStorage.getItem('fag') || '[]';
+    try {
+        const fag = JSON.parse(fagString);
+        return fag.map(f => ({
+            namn: f,
+            aktiv: false, // Skal settast basert på læreplanstatus
+            læreplanKopla: false
+        }));
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Hent elevtal for eit fag
+ */
+async function hentElevtalForFag(fag) {
+    try {
+        const elevar = await hentElevarIFag(fag);
+        return elevar.length;
+    } catch {
+        return 0;
+    }
+}
+
+/**
+ * Hent verbtal for eit fag
+ */
+async function hentVerbtalForFag(fag) {
+    // Midlertidig - returner 0
+    // Dette skal hentast frå verbbibliotek når det er implementert
+    return 0;
+}
+
+/**
+ * Vis fagdetaljar-dialog
+ */
+function visFagDetaljar(fagNamn) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 700px;">
+            <span class="close">&times;</span>
+            <h2>📚 ${fagNamn}</h2>
+
+            <div style="margin: 1.5rem 0;">
+                <h3>Elevadministrasjon</h3>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;">
+                    <button onclick="visCSVImportDialog('${fagNamn}')" class="btn-success">📥 CSV-import</button>
+                    <button onclick="visVismaLimInnDialog('${fagNamn}')" class="btn-success">📋 Visma lim inn</button>
+                    <button onclick="visManuellElevDialog('${fagNamn}')" class="btn-secondary">➕ Manuell legg til</button>
+                </div>
+            </div>
+
+            <div style="margin: 1.5rem 0;">
+                <h3>Læreplan</h3>
+                <p class="hjelpetekst">Last opp og analyser læreplan i Innstillingar for å aktivere faget.</p>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end;">
+                <button class="btn-secondary" onclick="this.closest('.modal').remove()">Lukk</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.querySelector('.close').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+}
+
+/**
+ * Vis dialog for manuell elevregistrering
+ */
+function visManuellElevDialog(fag) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close">&times;</span>
+            <h2>➕ Legg til elev i ${fag}</h2>
+
+            <div style="margin: 1.5rem 0;">
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-weight: 500; display: block; margin-bottom: 0.25rem;">Fornamn:</label>
+                    <input type="text" id="elev-fornamn" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-weight: 500; display: block; margin-bottom: 0.25rem;">Etternamn:</label>
+                    <input type="text" id="elev-etternamn" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-weight: 500; display: block; margin-bottom: 0.25rem;">Faggruppe:</label>
+                    <input type="text" id="elev-faggruppe" placeholder="t.d. Vg1A" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+
+                <div style="margin-bottom: 1rem;">
+                    <label style="font-weight: 500; display: block; margin-bottom: 0.25rem;">Basisgruppe (valfri):</label>
+                    <input type="text" id="elev-basisgruppe" placeholder="t.d. 2ST1" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button class="btn-secondary" onclick="this.closest('.modal').remove()">Avbryt</button>
+                <button id="lagre-elev-btn" class="btn-success">✓ Lagre</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.querySelector('.close').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    modal.querySelector('#lagre-elev-btn').addEventListener('click', async () => {
+        const fornamn = modal.querySelector('#elev-fornamn').value.trim();
+        const etternamn = modal.querySelector('#elev-etternamn').value.trim();
+        const faggruppe = modal.querySelector('#elev-faggruppe').value.trim();
+        const basisgruppe = modal.querySelector('#elev-basisgruppe').value.trim();
+
+        if (!fornamn || !etternamn || !faggruppe) {
+            showConfirmation('Fornamn, etternamn og faggruppe er påkravd', 'error');
+            return;
+        }
+
+        try {
+            await leggTilElevManuelt(fag, fornamn, etternamn, faggruppe, basisgruppe);
+            showConfirmation(`${fornamn} ${etternamn} lagt til i ${fag}`, 'success');
+            document.body.removeChild(modal);
+
+            // Oppdater fagoversikt
+            await oppdaterFagoversikt();
+
+        } catch (error) {
+            showConfirmation('Feil ved lagring av elev', 'error');
+            console.error(error);
+        }
+    });
 }
 
 // ========================================
@@ -340,3 +543,6 @@ window.confirmDelete = confirmDelete;
 window.arkiverTidlegareSkoleaar = arkiverTidlegareSkoleaar;
 window.visArkiv = visArkiv;
 window.oppdaterFagoversikt = oppdaterFagoversikt;
+window.visFagDetaljar = visFagDetaljar;
+window.visManuellElevDialog = visManuellElevDialog;
+window.hentElevarIFag = hentElevarIFag;
