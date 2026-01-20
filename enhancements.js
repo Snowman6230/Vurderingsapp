@@ -343,22 +343,41 @@ async function oppdaterFagoversikt() {
 }
 
 /**
- * Hent alle fag (midlertidig frå localStorage, bør flyttast til database)
+ * Hent alle fag frå database
  */
 async function hentAlleFag() {
-    // Midlertidig implementering
-    // Dette bør hentast frå database når fag-object store er implementert
-    const fagString = localStorage.getItem('fag') || '[]';
-    try {
-        const fag = JSON.parse(fagString);
-        return fag.map(f => ({
-            namn: f,
-            aktiv: false, // Skal settast basert på læreplanstatus
-            læreplanKopla: false
-        }));
-    } catch {
-        return [];
-    }
+    const db = await openDatabaseEnhancements();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['fag'], 'readonly');
+        const fagStore = transaction.objectStore('fag');
+        const request = fagStore.getAll();
+
+        request.onsuccess = () => {
+            const fag = request.result;
+            if (fag && fag.length > 0) {
+                resolve(fag);
+            } else {
+                // Fallback til localStorage om database er tom
+                const fagString = localStorage.getItem('fag') || '[]';
+                try {
+                    const fagArray = JSON.parse(fagString);
+                    resolve(fagArray.map(f => ({
+                        namn: typeof f === 'string' ? f : f.namn || f,
+                        aktiv: false,
+                        læreplanKopla: false
+                    })));
+                } catch {
+                    resolve([]);
+                }
+            }
+        };
+
+        request.onerror = () => {
+            console.error('Feil ved henting av fag:', request.error);
+            resolve([]);
+        };
+    });
 }
 
 /**
@@ -376,16 +395,30 @@ async function hentElevtalForFag(fag) {
 /**
  * Hent verbtal for eit fag
  */
-async function hentVerbtalForFag(fag) {
-    // Midlertidig - returner 0
-    // Dette skal hentast frå verbbibliotek når det er implementert
-    return 0;
+async function hentVerbtalForFag(fagNamn) {
+    try {
+        const fagId = await hentFagIdFraNamn(fagNamn);
+        if (!fagId) return 0;
+
+        const verbbibliotek = await hentVerbbibliotekForFag(fagId);
+        // Tel standard + læreplan + eigne verb
+        return verbbibliotek.fraaLæreplan.length + verbbibliotek.eigne.length;
+    } catch {
+        return 0;
+    }
 }
 
 /**
  * Vis fagdetaljar-dialog
  */
-function visFagDetaljar(fagNamn) {
+async function visFagDetaljar(fagNamn) {
+    // Hent fagId frå database
+    const fagId = await hentFagIdFraNamn(fagNamn);
+    if (!fagId) {
+        showConfirmation('Fag ikkje funne', 'error');
+        return;
+    }
+
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.display = 'block';
@@ -404,8 +437,13 @@ function visFagDetaljar(fagNamn) {
             </div>
 
             <div style="margin: 1.5rem 0;">
-                <h3>Læreplan</h3>
-                <p class="hjelpetekst">Last opp og analyser læreplan i Innstillingar for å aktivere faget.</p>
+                <h3>Læreplan og verb</h3>
+                <p class="hjelpetekst">Last opp læreplan (DOCX) for å aktivere faget og ekstrahere verb automatisk.</p>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;">
+                    <button id="last-opp-læreplan-btn" class="btn-success">📄 Last opp læreplan</button>
+                    <button id="vis-verbbibliotek-btn" class="btn-secondary">📖 Verbbibliotek</button>
+                </div>
+                <input type="file" id="læreplan-fil-input" accept=".docx" style="display: none;">
             </div>
 
             <div style="display: flex; justify-content: flex-end;">
@@ -418,6 +456,38 @@ function visFagDetaljar(fagNamn) {
 
     modal.querySelector('.close').addEventListener('click', () => {
         document.body.removeChild(modal);
+    });
+
+    // Last opp læreplan
+    const lastOppBtn = modal.querySelector('#last-opp-læreplan-btn');
+    const filInput = modal.querySelector('#læreplan-fil-input');
+
+    lastOppBtn.addEventListener('click', () => {
+        filInput.click();
+    });
+
+    filInput.addEventListener('change', async () => {
+        const file = filInput.files[0];
+        if (!file) return;
+
+        try {
+            showConfirmation('Analyserer læreplan...', 'info');
+            const resultat = await lastOppLæreplan(fagId, file);
+            showConfirmation(`Læreplan analysert! Fann ${resultat.verbtal} verb. Faget er no aktivt.`, 'success');
+
+            // Oppdater fagoversikt
+            await oppdaterFagoversikt();
+
+        } catch (error) {
+            showConfirmation('Feil ved opplasting: ' + error.message, 'error');
+            console.error(error);
+        }
+    });
+
+    // Vis verbbibliotek
+    modal.querySelector('#vis-verbbibliotek-btn').addEventListener('click', () => {
+        document.body.removeChild(modal);
+        visVerbbibliotek(fagId, fagNamn);
     });
 }
 
@@ -495,12 +565,100 @@ function visManuellElevDialog(fag) {
 }
 
 // ========================================
+// HJELPEFUNKSJONAR FOR FAG
+// ========================================
+
+/**
+ * Hent fagId frå fagnamn
+ */
+async function hentFagIdFraNamn(fagNamn) {
+    const db = await openDatabaseEnhancements();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['fag'], 'readonly');
+        const fagStore = transaction.objectStore('fag');
+
+        // Søk gjennom alle fag
+        const request = fagStore.openCursor();
+        request.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if (cursor) {
+                if (cursor.value.namn === fagNamn) {
+                    resolve(cursor.value.id);
+                    return;
+                }
+                cursor.continue();
+            } else {
+                resolve(null);
+            }
+        };
+
+        request.onerror = () => reject(request.error);
+    });
+}
+
+async function openDatabaseEnhancements() {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open('VurderingsappDB');
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+/**
+ * Migrer fag frå localStorage til database
+ */
+async function migrerFagTilDatabase() {
+    const fagString = localStorage.getItem('fag');
+    if (!fagString) return;
+
+    try {
+        const fagArray = JSON.parse(fagString);
+        if (!Array.isArray(fagArray) || fagArray.length === 0) return;
+
+        const db = await openDatabaseEnhancements();
+        const transaction = db.transaction(['fag'], 'readwrite');
+        const fagStore = transaction.objectStore('fag');
+
+        // Sjekk om database allereie har fag
+        const countRequest = fagStore.count();
+        countRequest.onsuccess = () => {
+            if (countRequest.result > 0) {
+                // Database har allereie fag, ikkje migrer
+                return;
+            }
+
+            // Migrer kvart fag
+            for (const fag of fagArray) {
+                const fagNamn = typeof fag === 'string' ? fag : fag.namn || fag;
+                fagStore.add({
+                    namn: fagNamn,
+                    aktiv: false,
+                    læreplanKopla: false,
+                    verbFraaLæreplan: [],
+                    eigneVerb: [],
+                    opprettetDato: new Date().toISOString()
+                });
+            }
+
+            console.log(`Migrert ${fagArray.length} fag til database`);
+        };
+
+    } catch (error) {
+        console.error('Feil ved migrering av fag:', error);
+    }
+}
+
+// ========================================
 // INIT
 // ========================================
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Init fargetema
     initFargetema();
+
+    // Migrer fag frå localStorage til database
+    await migrerFagTilDatabase();
 
     // Oppdater skulenamn-vising
     oppdaterSkuleNamnVising();

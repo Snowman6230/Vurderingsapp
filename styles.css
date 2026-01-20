@@ -1596,3 +1596,46 @@ body.dark-mode .support-tab.active {
 body.dark-mode .support-tabs {
     border-bottom-color: #34495e;
 }
+
+/* ========================================
+   VERBBIBLIOTEK TABS
+   ======================================== */
+
+.verb-tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #7f8c8d;
+}
+
+.verb-tab:hover {
+    color: var(--secondary);
+    background: rgba(52, 152, 219, 0.05);
+}
+
+.verb-tab.active {
+    color: var(--secondary);
+    border-bottom-color: var(--secondary);
+    font-weight: 600;
+}
+
+.verb-tab-content {
+    margin-top: 1.5rem;
+}
+
+body.dark-mode .verb-tab {
+    color: #95a5a6;
+}
+
+body.dark-mode .verb-tab:hover {
+    color: #3498db;
+    background: rgba(52, 152, 219, 0.1);
+}
+
+body.dark-mode .verb-tab.active {
+    color: #3498db;
+}
