@@ -40,14 +40,16 @@
                 © Alpindata, Hans Petter Brunstad Sørensen
             </h2>
             <div class="header-info">
+                <span id="skule-namn-visning"></span>
                 <span id="skoleaar-visning"></span>
                 <span id="semester-visning"></span>
+                <button id="language-btn" class="language-btn" title="Bytt språk">🌐</button>
                 <button id="support-btn" class="support-btn" title="Hjelp og støtte">❓</button>
             </div>
             <nav>
                 <button class="nav-btn active" data-view="hurtigmodus">⚡ Hurtigmodus</button>
                 <button class="nav-btn" data-view="elevoversikt">👤 Elevoversikt</button>
-                <button class="nav-btn" data-view="klasseoversikt">📊 Klasseoversikt</button>
+                <button class="nav-btn" data-view="fagoversikt">📊 Fagoversikt</button>
                 <button class="nav-btn" data-view="grafikk">📈 Grafikk</button>
                 <button class="nav-btn" data-view="historikk">📜 Historikk</button>
                 <button class="nav-btn" data-view="innstillinger">⚙️ Innstillinger</button>
@@ -63,9 +65,9 @@
                 <div class="hurtig-container">
                     <div class="kontroll-panel">
                         <div class="kontroll-gruppe">
-                            <label>Klasse:</label>
-                            <select id="hurtig-klasse">
-                                <option value="">-- Velg klasse --</option>
+                            <label data-i18n="context.faggruppe">Faggruppe:</label>
+                            <select id="hurtig-faggruppe">
+                                <option value="" data-i18n="hurtigmodus.velFaggruppeForst">-- Vel faggruppe --</option>
                             </select>
                         </div>
                         <div class="kontroll-gruppe">
@@ -137,8 +139,8 @@
                 </div>
             </section>
 
-            <!-- Klasseoversikt -->
-            <section id="klasseoversikt" class="view">
+            <!-- Fagoversikt -->
+            <section id="fagoversikt" class="view">
                 <div class="oversikt-container">
                     <div class="oversikt-kontroller">
                         <div class="kontroll-gruppe">
@@ -872,6 +874,7 @@ Geografi VG1</pre>
     <!-- Toast meldinger -->
     <div id="toast" class="toast"></div>
 
+    <script src="i18n.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

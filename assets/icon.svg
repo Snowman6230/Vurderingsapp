@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <!-- Background circle -->
+  <circle cx="96" cy="96" r="90" fill="#3498db"/>
+
+  <!-- Mountain peaks -->
+  <path d="M 50 120 L 75 70 L 100 120 Z" fill="#ffffff" opacity="0.9"/>
+  <path d="M 80 105 L 105 55 L 130 105 Z" fill="#ffffff"/>
+  <path d="M 110 95 L 130 65 L 150 95 Z" fill="#ffffff" opacity="0.9"/>
+
+  <!-- Checkmark overlay -->
+  <path d="M 60 95 L 80 115 L 135 60" stroke="#2c3e50" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,7 +1,7 @@
 {
   "name": "Vurderingsapp v3",
   "short_name": "Vurdering v3",
-  "description": "Avansert vurderingsapp for lærarar med grafikk og AI-assistanse",
+  "description": "Lokal vurderingsapp for faglærarar. Fungerer fullstendig offline med full lagring og arkiv. © Alpindata",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#ecf0f1",
