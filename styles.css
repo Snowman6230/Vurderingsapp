@@ -18,6 +18,34 @@
     --low: #e74c3c;
 }
 
+/* Fargetema - Blå (standard) */
+body.tema-blaa {
+    --secondary: #3498db;
+    --success: #27ae60;
+    --warning: #f39c12;
+}
+
+/* Fargetema - Grøn */
+body.tema-gronn {
+    --secondary: #27ae60;
+    --success: #2ecc71;
+    --warning: #16a085;
+}
+
+/* Fargetema - Lilla */
+body.tema-lilla {
+    --secondary: #9b59b6;
+    --success: #8e44ad;
+    --warning: #c39bd3;
+}
+
+/* Fargetema - Oransje */
+body.tema-oransje {
+    --secondary: #e67e22;
+    --success: #d35400;
+    --warning: #f39c12;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     background: var(--light);

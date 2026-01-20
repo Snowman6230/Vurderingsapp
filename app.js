@@ -132,7 +132,7 @@ function oppdaterTekstforslag() {
 
 // Globale variabler
 let valgtElev = null;
-let sisteValgteKlasse = '';
+let sisteValgteFaggruppe = '';
 let sisteValgteFag = '';
 let gjeldendeSkoleaar = '';
 let gjeldendeSemester = '';
@@ -595,18 +595,18 @@ function setupEventListeners() {
     });
     
     // Hurtigmodus
-    const hurtigKlasse = document.getElementById('hurtig-klasse');
-    if (hurtigKlasse) {
-        hurtigKlasse.addEventListener('change', (e) => {
-            sisteValgteKlasse = e.target.value;
+    const hurtigFaggruppe = document.getElementById('hurtig-faggruppe');
+    if (hurtigFaggruppe) {
+        hurtigFaggruppe.addEventListener('change', (e) => {
+            sisteValgteFaggruppe = e.target.value;
             visEleverIHurtigmodus(e.target.value);
         });
     }
 
     // Elevoversikt
-    const elevoversiktKlasse = document.getElementById('elevoversikt-klasse');
-    if (elevoversiktKlasse) {
-        elevoversiktKlasse.addEventListener('change', async (e) => {
+    const elevoversiktFaggruppe = document.getElementById('elevoversikt-faggruppe');
+    if (elevoversiktFaggruppe) {
+        elevoversiktFaggruppe.addEventListener('change', async (e) => {
             await oppdaterElevSelect(e.target.value);
         });
     }
@@ -621,12 +621,12 @@ function setupEventListeners() {
     }
 
     // Klasseoversikt
-    const oversiktKlasse = document.getElementById('oversikt-klasse');
+    const oversiktFaggruppe = document.getElementById('oversikt-faggruppe');
     const oversiktFag = document.getElementById('oversikt-fag');
     const oversiktSkoleaar = document.getElementById('oversikt-skoleaar');
     const oversiktSemester = document.getElementById('oversikt-semester');
     const oversiktSortering = document.getElementById('oversikt-sortering');
-    if (oversiktKlasse) oversiktKlasse.addEventListener('change', oppdaterKlasseoversikt);
+    if (oversiktFaggruppe) oversiktFaggruppe.addEventListener('change', oppdaterKlasseoversikt);
     if (oversiktFag) oversiktFag.addEventListener('change', oppdaterKlasseoversikt);
     if (oversiktSkoleaar) oversiktSkoleaar.addEventListener('change', oppdaterKlasseoversikt);
     if (oversiktSemester) oversiktSemester.addEventListener('change', oppdaterKlasseoversikt);
@@ -634,14 +634,14 @@ function setupEventListeners() {
 
     // Historikk
     const historikkSok = document.getElementById('historikk-sok');
-    const historikkKlasse = document.getElementById('historikk-klasse');
+    const historikkFaggruppe = document.getElementById('historikk-faggruppe');
     const historikkFag = document.getElementById('historikk-fag');
     const historikkSkoleaar = document.getElementById('historikk-skoleaar');
     const historikkSemester = document.getElementById('historikk-semester');
     const historikkFra = document.getElementById('historikk-fra');
     const historikkTil = document.getElementById('historikk-til');
     if (historikkSok) historikkSok.addEventListener('input', oppdaterHistorikk);
-    if (historikkKlasse) historikkKlasse.addEventListener('change', oppdaterHistorikk);
+    if (historikkFaggruppe) historikkFaggruppe.addEventListener('change', oppdaterHistorikk);
     if (historikkFag) historikkFag.addEventListener('change', oppdaterHistorikk);
     if (historikkSkoleaar) historikkSkoleaar.addEventListener('change', oppdaterHistorikk);
     if (historikkSemester) historikkSemester.addEventListener('change', oppdaterHistorikk);
@@ -746,7 +746,7 @@ function visView(view) {
             visElevoversikt();
             break;
         case 'klasseoversikt':
-            oppdaterKlasseoversikt();
+            oppdaterFagoversikt();
             break;
 		case 'grafikk':
 			try { oppdaterGrafikk(); } catch (e) {}
@@ -765,9 +765,9 @@ function visView(view) {
 
 // Hurtigmodus funksjoner
 async function visHurtigmodus() {
-    if (sisteValgteKlasse) {
-        document.getElementById('hurtig-klasse').value = sisteValgteKlasse;
-        visEleverIHurtigmodus(sisteValgteKlasse);
+    if (sisteValgteFaggruppe) {
+        document.getElementById('hurtig-faggruppe').value = sisteValgteFaggruppe;
+        visEleverIHurtigmodus(sisteValgteFaggruppe);
     }
 }
 
@@ -1454,8 +1454,8 @@ function lukkOppsummeringModal() {
 }
 
 // Klasseoversikt funksjoner
-async function oppdaterKlasseoversikt() {
-    const klasse = document.getElementById('oversikt-klasse').value;
+async function oppdaterFagoversikt() {
+    const klasse = document.getElementById('oversikt-faggruppe').value;
     const fag = document.getElementById('oversikt-fag').value;
     const skoleaar = document.getElementById('oversikt-skoleaar').value;
     const semester = document.getElementById('oversikt-semester').value;
@@ -1584,7 +1584,7 @@ function nyVurderingForElevFag(elevId, fag) {
     
     setTimeout(async () => {
         const elev = await hentElev(elevId);
-        document.getElementById('hurtig-klasse').value = elev.klasse;
+        document.getElementById('hurtig-faggruppe').value = elev.klasse;
         await visEleverIHurtigmodus(elev.klasse);
         
         // Finn og klikk på eleven
@@ -1600,7 +1600,7 @@ function nyVurderingForElevFag(elevId, fag) {
 // Historikk funksjoner
 async function oppdaterHistorikk() {
     const sok = document.getElementById('historikk-sok').value.toLowerCase();
-    const klasseFilter = document.getElementById('historikk-klasse').value;
+    const klasseFilter = document.getElementById('historikk-faggruppe').value;
     const fagFilter = document.getElementById('historikk-fag').value;
     const skoleaarFilter = document.getElementById('historikk-skoleaar').value;
     const semesterFilter = document.getElementById('historikk-semester').value;
@@ -2230,17 +2230,17 @@ async function lastKlasser() {
     
     // Oppdater alle klassevelgere
     const selects = [
-        document.getElementById('hurtig-klasse'),
-        document.getElementById('elevoversikt-klasse'),
-        document.getElementById('oversikt-klasse'),
-        document.getElementById('historikk-klasse')
+        document.getElementById('hurtig-faggruppe'),
+        document.getElementById('elevoversikt-faggruppe'),
+        document.getElementById('oversikt-faggruppe'),
+        document.getElementById('historikk-faggruppe')
     ];
     
     selects.forEach(select => {
         if (!select) return;
         const currentValue = select.value;
         
-        if (select.id === 'historikk-klasse') {
+        if (select.id === 'historikk-faggruppe') {
             select.innerHTML = '<option value="">Alle klasser</option>';
         } else {
             select.innerHTML = '<option value="">-- Velg klasse --</option>';
@@ -3766,7 +3766,7 @@ let trendGraf = null;
 // Initialiser grafikk-view
 function initGrafikkView() {
     // Fyll inn dropdown-menyar
-    const klasseSel = document.getElementById('grafikk-klasse');
+    const faggruppeSel = document.getElementById('grafikk-faggruppe');
     const fagSel = document.getElementById('grafikk-fag');
     const skoleaarSel = document.getElementById('grafikk-skoleaar');
     
@@ -3783,7 +3783,7 @@ function initGrafikkView() {
     }
     
     // Event listeners
-    if (klasseSel) klasseSel.addEventListener('change', oppdaterGrafikkStatistikk);
+    if (klasseSel) faggruppeSel.addEventListener('change', oppdaterGrafikkStatistikk);
     if (fagSel) fagSel.addEventListener('change', oppdaterGrafikkStatistikk);
     if (skoleaarSel) skoleaarSel.addEventListener('change', oppdaterGrafikkStatistikk);
     
@@ -3792,7 +3792,7 @@ function initGrafikkView() {
 
 // Oppdater statistikk og grafikk
 async function oppdaterGrafikkStatistikk() {
-    const klasse = document.getElementById('grafikk-klasse')?.value || '';
+    const klasse = document.getElementById('grafikk-faggruppe')?.value || '';
     const fag = document.getElementById('grafikk-fag')?.value || '';
     const skoleaar = document.getElementById('grafikk-skoleaar')?.value || '';
     
@@ -4315,7 +4315,7 @@ function tegnElevGraf(vurderinger, type) {
 
 // Eksporter til Excel
 async function eksporterTilExcel() {
-    const klasse = document.getElementById('oversikt-klasse')?.value || '';
+    const klasse = document.getElementById('oversikt-faggruppe')?.value || '';
     const fag = document.getElementById('oversikt-fag')?.value || '';
     const skoleaar = document.getElementById('oversikt-skoleaar')?.value || '';
     const semester = document.getElementById('oversikt-semester')?.value || '';
@@ -4380,7 +4380,7 @@ async function eksporterTilExcel() {
 async function eksporterTilPDF() {
     const { jsPDF } = window.jspdf;
     
-    const klasse = document.getElementById('oversikt-klasse')?.value || '';
+    const klasse = document.getElementById('oversikt-faggruppe')?.value || '';
     const fag = document.getElementById('oversikt-fag')?.value || '';
     const skoleaar = document.getElementById('oversikt-skoleaar')?.value || '';
     const semester = document.getElementById('oversikt-semester')?.value || '';
@@ -4453,7 +4453,7 @@ let fuseKompetansemaal = null;
 
 // Initialiser Fuse for elevsøk
 async function initElevSok() {
-    const klasse = document.getElementById('hurtig-klasse')?.value;
+    const klasse = document.getElementById('hurtig-faggruppe')?.value;
     if (!klasse) return;
     
     const elever = await hentElevarIKlasse(klasse);
@@ -4501,7 +4501,7 @@ function sokElever(query) {
 
 // Vis alle elever
 async function visAlleElever() {
-    const klasse = document.getElementById('hurtig-klasse')?.value;
+    const klasse = document.getElementById('hurtig-faggruppe')?.value;
     if (!klasse) return;
     
     const elever = await hentElevarIKlasse(klasse);
