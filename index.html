@@ -141,49 +141,31 @@
 
             <!-- Fagoversikt -->
             <section id="fagoversikt" class="view">
-                <div class="oversikt-container">
-                    <div class="oversikt-kontroller">
-                        <div class="kontroll-gruppe">
-                            <label>Faggruppe:</label>
-                            <select id="oversikt-faggruppe">
-                                <option value="">-- Vel faggruppe --</option>
-                            </select>
-                        </div>
-                        <div class="kontroll-gruppe">
-                            <label>Fag:</label>
-                            <select id="oversikt-fag">
-                                <option value="">-- Velg fag --</option>
-                            </select>
-                        </div>
-                        <div class="kontroll-gruppe">
-                            <label>Skoleår:</label>
-                            <select id="oversikt-skoleaar"></select>
-                        </div>
-                        <div class="kontroll-gruppe">
-                            <label>Semester:</label>
-                            <select id="oversikt-semester">
-                                <option value="">Alle</option>
-                                <option value="Høst">Høst</option>
-                                <option value="Vår">Vår</option>
-                            </select>
-                        </div>
-                        <div class="kontroll-gruppe">
-                            <label>Sortering:</label>
-                            <select id="oversikt-sortering">
-                                <option value="navn">Navn</option>
-                                <option value="dato">Sist vurdert</option>
-                                <option value="vurdering">Vurdering</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <!-- Eksport-knapper -->
-                    <div class="eksport-panel">
-                        <button id="eksport-excel" class="btn-success">📥 Eksporter til Excel</button>
-                        <button id="eksport-pdf" class="btn-success">📄 Eksporter til PDF</button>
-                    </div>
+                <div class="fagoversikt-container">
+                    <h2>📚 Fagoversikt</h2>
+                    <p class="hjelpetekst">Oversikt over alle fag med status, læreplan og elevtal. Fag blir aktivt når læreplan er lasta opp og analysert.</p>
 
-                    <div id="oversikt-tabell" class="oversikt-tabell"></div>
+                    <div id="fagoversikt-tabell" class="fagoversikt-tabell">
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 1rem;">
+                            <thead>
+                                <tr style="background: var(--dark); color: white;">
+                                    <th style="padding: 0.75rem; text-align: left;">Fag</th>
+                                    <th style="padding: 0.75rem; text-align: center;">Status</th>
+                                    <th style="padding: 0.75rem; text-align: center;">Læreplan</th>
+                                    <th style="padding: 0.75rem; text-align: center;">Elevar</th>
+                                    <th style="padding: 0.75rem; text-align: center;">Verb</th>
+                                    <th style="padding: 0.75rem; text-align: center;">Handlingar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="fagoversikt-body">
+                                <tr>
+                                    <td colspan="6" style="padding: 2rem; text-align: center; color: #95a5a6;">
+                                        Ingen fag registrert enno. Gå til Innstillingar for å leggje til fag.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </section>
 
@@ -299,6 +281,11 @@
                         <label><input type="checkbox" class="ferdighet-filter" value="Lese"> 📖 Lese</label>
                         <label><input type="checkbox" class="ferdighet-filter" value="Rekne"> 🔢 Rekne</label>
                         <label><input type="checkbox" class="ferdighet-filter" value="Digital"> 💻 Digital</label>
+                    </div>
+
+                    <!-- Arkiv-knapp -->
+                    <div style="margin-top: 1rem; text-align: center;">
+                        <button id="opne-arkiv-btn" class="btn-secondary">📦 Opne arkiv</button>
                     </div>
 
                     <div id="historikk-liste" class="historikk-liste"></div>
@@ -855,6 +842,7 @@
 
     <script src="i18n.js"></script>
     <script src="enhancements.js"></script>
+    <script src="database-migration.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

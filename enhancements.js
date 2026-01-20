@@ -154,12 +154,141 @@ async function confirmDelete(message, requireText = null) {
 // ========================================
 
 async function arkiverTidlegareSkoleaar(nyttSkoleaar) {
-    // Dette må integrerast med eksisterande database
-    // For no berre ein placeholder
-    console.log('Arkiverer vurderingar for skoleår før:', nyttSkoleaar);
+    const gamaltSkoleaar = localStorage.getItem('skoleaar');
 
-    // Vis stadfesting
-    showConfirmation(i18n.t('bekreftingar.skoleaarEndra'));
+    if (!gamaltSkoleaar || gamaltSkoleaar === nyttSkoleaar) {
+        return; // Ingen arkivering nødvendig
+    }
+
+    // Stadfest med brukar
+    const confirm = await confirmDelete(
+        `Du er i ferd med å endre skoleår frå ${gamaltSkoleaar} til ${nyttSkoleaar}. Alle vurderingar frå ${gamaltSkoleaar} blir arkiverte. Vil du fortsette?`
+    );
+
+    if (!confirm) {
+        return false;
+    }
+
+    try {
+        // Arkiver vurderingar via database-migration.js
+        if (typeof arkiverVurderingar === 'function') {
+            const resultat = await arkiverVurderingar(gamaltSkoleaar);
+            showConfirmation(`Arkivert ${resultat.arkiverte} vurderingar frå ${gamaltSkoleaar}`);
+
+            // Oppdater skoleår
+            localStorage.setItem('skoleaar', nyttSkoleaar);
+            return true;
+        } else {
+            console.error('arkiverVurderingar funksjon ikkje funne');
+            return false;
+        }
+    } catch (error) {
+        console.error('Feil ved arkivering:', error);
+        showConfirmation('Feil ved arkivering', 'error');
+        return false;
+    }
+}
+
+// ========================================
+// ARKIV-VISNING
+// ========================================
+
+async function visArkiv() {
+    if (typeof hentArkiverteSkoleaar !== 'function') {
+        showConfirmation('Arkiv-funksjon ikkje tilgjengeleg', 'error');
+        return;
+    }
+
+    const skoleaar = await hentArkiverteSkoleaar();
+
+    if (skoleaar.length === 0) {
+        showConfirmation('Ingen arkiverte vurderingar funne', 'info');
+        return;
+    }
+
+    // Lag arkiv-modal
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 900px; max-height: 80vh; overflow-y: auto;">
+            <span class="close">&times;</span>
+            <h2>📦 Arkiv</h2>
+            <p class="hjelpetekst">Arkiverte vurderingar frå tidlegare skoleår.</p>
+
+            <div style="margin: 1.5rem 0;">
+                <label style="font-weight: 500;">Vel skoleår:</label>
+                <select id="arkiv-skoleaar" style="width: 100%; padding: 0.5rem; margin-top: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                    <option value="">-- Vel skoleår --</option>
+                    ${skoleaar.map(aar => `<option value="${aar}">${aar}</option>`).join('')}
+                </select>
+            </div>
+
+            <div id="arkiv-innhald" style="margin-top: 1.5rem;">
+                <p style="text-align: center; color: #95a5a6;">Vel eit skoleår for å sjå arkiverte vurderingar</p>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Lukk-knapp
+    modal.querySelector('.close').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    // Skoleår-veljar
+    modal.querySelector('#arkiv-skoleaar').addEventListener('change', async (e) => {
+        const valtSkoleaar = e.target.value;
+        if (!valtSkoleaar) return;
+
+        const vurderingar = await hentArkiverteVurderingar(valtSkoleaar);
+        visArkiverteVurderingar(modal, vurderingar);
+    });
+}
+
+function visArkiverteVurderingar(modal, vurderingar) {
+    const innhaldEl = modal.querySelector('#arkiv-innhald');
+
+    if (vurderingar.length === 0) {
+        innhaldEl.innerHTML = '<p style="text-align: center; color: #95a5a6;">Ingen vurderingar funne</p>';
+        return;
+    }
+
+    innhaldEl.innerHTML = `
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="background: var(--dark); color: white;">
+                    <th style="padding: 0.5rem; text-align: left;">Dato</th>
+                    <th style="padding: 0.5rem; text-align: left;">Elev</th>
+                    <th style="padding: 0.5rem; text-align: left;">Fag</th>
+                    <th style="padding: 0.5rem; text-align: left;">Tema</th>
+                    <th style="padding: 0.5rem; text-align: center;">Nivå</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${vurderingar.map(v => `
+                    <tr style="border-bottom: 1px solid #ddd;">
+                        <td style="padding: 0.5rem;">${v.dato || 'Ukjent'}</td>
+                        <td style="padding: 0.5rem;">${v.elevNavn || 'Ukjent'}</td>
+                        <td style="padding: 0.5rem;">${v.fag || 'Ukjent'}</td>
+                        <td style="padding: 0.5rem;">${v.tema || 'Ukjent'}</td>
+                        <td style="padding: 0.5rem; text-align: center;">${v.vurdering || '-'}</td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+}
+
+// ========================================
+// FAGOVERSIKT
+// ========================================
+
+async function oppdaterFagoversikt() {
+    // Dette vil bli implementert i app.js
+    // Placeholder for no
+    console.log('oppdaterFagoversikt() - implementer i app.js');
 }
 
 // ========================================
@@ -193,6 +322,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 100);
         });
     }
+
+    // Arkiv-knapp
+    const arkivBtn = document.getElementById('opne-arkiv-btn');
+    if (arkivBtn) {
+        arkivBtn.addEventListener('click', visArkiv);
+    }
 });
 
 // ========================================
@@ -203,3 +338,5 @@ window.showConfirmation = showConfirmation;
 window.lagreInnstilling = lagreInnstilling;
 window.confirmDelete = confirmDelete;
 window.arkiverTidlegareSkoleaar = arkiverTidlegareSkoleaar;
+window.visArkiv = visArkiv;
+window.oppdaterFagoversikt = oppdaterFagoversikt;
