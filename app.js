@@ -602,14 +602,102 @@ async function initDB() {
     });
 }
 
+// Funksjon for å fikse elevdata - ekstrahere klassenamn/faggruppe frå fornamn
+async function migrerEksisterandeData() {
+    console.log('🔧 Startar migrering av elevdata...');
+
+    const transaction = db.transaction(['elever'], 'readwrite');
+    const store = transaction.objectStore('elever');
+    const request = store.getAll();
+
+    return new Promise((resolve) => {
+        request.onsuccess = async () => {
+            const elever = request.result;
+            console.log(`📊 ${elever.length} elevar i database`);
+
+            if (elever.length > 0) {
+                console.log('📋 Første elev:', elever[0]);
+                console.log('fornamn:', elever[0].fornamn);
+                console.log('etternamn:', elever[0].etternamn);
+                console.log('fag:', elever[0].fag);
+                console.log('klasse:', elever[0].klasse);
+                console.log('faggruppe:', elever[0].faggruppe);
+            }
+
+            let oppdatert = 0;
+            let manglendeFaggruppe = 0;
+
+            for (const elev of elever) {
+                let endret = false;
+
+                // Sjekk om fornamn startar med klassenamn-mønster (t.d. 1ST1, 2NA3, 3KR1)
+                // Mønster: siffer + 1-4 bokstavar + valfritt siffer + mellomrom
+                const klassenavnMatch = elev.fornamn?.match(/^(\d[A-ZÆØÅ]{1,4}\d?)\s+(.+)$/);
+
+                if (klassenavnMatch && (!elev.faggruppe || elev.faggruppe === '')) {
+                    const klassenamn = klassenavnMatch[1];
+                    const reeltFornamn = klassenavnMatch[2];
+
+                    elev.faggruppe = klassenamn;
+                    elev.fornamn = reeltFornamn;
+
+                    // Set også klasse-felt for bakoverkompatibilitet
+                    if (!elev.klasse) {
+                        elev.klasse = klassenamn;
+                    }
+
+                    endret = true;
+                    console.log(`✅ Ekstraherte faggruppe "${klassenamn}" frå fornamn: ${elev.fornamn}`);
+                }
+
+                // Migrer klasse til faggruppe om nødvendig
+                if (elev.klasse && (!elev.faggruppe || elev.faggruppe === '')) {
+                    elev.faggruppe = elev.klasse;
+                    endret = true;
+                    console.log(`✅ Migrerte klasse "${elev.klasse}" til faggruppe for ${elev.fornamn}`);
+                }
+
+                // Sjekk om faggruppe manglar
+                if (!elev.faggruppe || elev.faggruppe === '') {
+                    manglendeFaggruppe++;
+                    // Set faggruppe til tom string om det ikkje finst
+                    if (elev.faggruppe === undefined) {
+                        elev.faggruppe = '';
+                        endret = true;
+                    }
+                }
+
+                // Sjekk om fag manglar
+                if (elev.fag === undefined) {
+                    elev.fag = '';
+                    endret = true;
+                }
+
+                // Lagre endringane om noko blei endra
+                if (endret) {
+                    await store.put(elev);
+                    oppdatert++;
+                }
+            }
+
+            console.log(`✅ ${oppdatert} elevar oppdatert`);
+            console.log(`⚠️ ${manglendeFaggruppe} elevar manglar faggruppe`);
+
+            if (oppdatert > 0) {
+                visToast(`${oppdatert} elevar oppdatert med faggruppe!`, 'success');
+            }
+
+            resolve(oppdatert);
+        };
+    });
+}
+
 // Initialiser app komponenter
 async function initApp() {
     await lastInnstillinger();
 
     // Migrer eksisterande data frå klasse til faggruppe
-    if (typeof migrerEksisterandeData === 'function') {
-        await migrerEksisterandeData();
-    }
+    await migrerEksisterandeData();
 
     await oppdaterSkoleaarOgSemester();
     await lastKlasser();
@@ -811,6 +899,17 @@ function setupEventListeners() {
     if (importerBtn && importerBackupV2) {
         importerBtn.addEventListener('click', () => importerBackupV2.click());
     }
+
+    // Fiks elevdata knapp
+    const fiksElevdataBtn = document.getElementById('fiks-elevdata-btn');
+    if (fiksElevdataBtn) fiksElevdataBtn.addEventListener('click', async () => {
+        const bekreft = confirm('Dette vil ekstrahere klassenamn/faggruppe frå fornamn for alle elevar som har klassenamn i fornamn (t.d. "1ST1 Mohammad Refai"). Vil du fortsetje?');
+        if (bekreft) {
+            await migrerEksisterandeData();
+            await lastKlasser();
+            await lastElever();
+        }
+    });
 
     // Modaler
     const closeBtn = document.querySelector('.close');
@@ -2170,7 +2269,17 @@ async function importerEleverCSV(event) {
                     elev.faggruppe = elev.klasse;
                 }
 
-                if (elev.elev_id && elev.fornavn && elev.etternavn && elev.faggruppe) {
+                // Legg til faggruppe som tom string om det ikkje finst
+                if (!elev.faggruppe) {
+                    elev.faggruppe = '';
+                }
+
+                // Legg til fag som tom string om det ikkje finst
+                if (!elev.fag) {
+                    elev.fag = '';
+                }
+
+                if (elev.elev_id && elev.fornavn && elev.etternavn) {
                     elever.push(elev);
                 }
             }
