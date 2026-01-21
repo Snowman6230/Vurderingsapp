@@ -1848,13 +1848,18 @@ async function visInnstillinger() {
             <button onclick="fjernFag('${fag}')">×</button>
         </div>
     `).join('');
-    
-    // Sett innstillinger
-    document.getElementById('autoforslag-toggle').checked = innstillinger.autoforslag !== false;
-    document.getElementById('varsel-dager').value = innstillinger.varselDager || 30;
-    document.getElementById('semester-grense').value = innstillinger.semester_grense_mnd || 7;
-    document.getElementById('oppsummering-lengde').value = innstillinger.oppsummering_lengde || 'kort';
-    
+
+    // Sett innstillinger (med null-sjekk)
+    const autoforslagToggle = document.getElementById('autoforslag-toggle');
+    const varselDager = document.getElementById('varsel-dager');
+    const semesterGrenseMnd = document.getElementById('semester-grense');
+    const oppsummeringLengde = document.getElementById('oppsummering-lengde');
+
+    if (autoforslagToggle) autoforslagToggle.checked = innstillinger.autoforslag !== false;
+    if (varselDager) varselDager.value = innstillinger.varselDager || 30;
+    if (semesterGrenseMnd) semesterGrenseMnd.value = innstillinger.semester_grense_mnd || 7;
+    if (oppsummeringLengde) oppsummeringLengde.value = innstillinger.oppsummering_lengde || 'kort';
+
     // Initialiser læreplan-UI
     await initLaereplanUI();
 }
