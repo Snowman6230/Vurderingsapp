@@ -491,6 +491,10 @@ async function initDB() {
 async function initApp() {
     await lastInnstillinger();
     await oppdaterSkoleaarOgSemester();
+
+    // Fiks elevdata om nødvendig (ekstrahere klassenamn frå fornamn)
+    await fiksElevdata();
+
     await lastKlasser();
     await lastElever();
     visHurtigmodus();
@@ -677,6 +681,17 @@ function setupEventListeners() {
     const eksportAltV3 = document.getElementById('eksporter-data');
     if (eksportAltV2) eksportAltV2.addEventListener('click', eksporterAlt);
     if (eksportAltV3) eksportAltV3.addEventListener('click', eksporterAlt);
+
+    // Fiks elevdata knapp
+    const fiksElevdataBtn = document.getElementById('fiks-elevdata-btn');
+    if (fiksElevdataBtn) fiksElevdataBtn.addEventListener('click', async () => {
+        const bekreft = confirm('Dette vil ekstrahere klassenamn frå fornamn for alle elevar som har klassenamn i fornamn (t.d. "1ST1 Mohammad Refai"). Vil du fortsetje?');
+        if (bekreft) {
+            await fiksElevdata();
+            await lastKlasser();
+            await lastElever();
+        }
+    });
 
     const eksportCsvV2 = document.getElementById('eksporter-csv');
     if (eksportCsvV2) eksportCsvV2.addEventListener('click', eksporterVurderingerCSV);
@@ -1912,26 +1927,36 @@ async function importerEleverCSV(event) {
             
             // Valider headers
             const requiredHeaders = ['elev_id', 'fornavn', 'etternavn', 'klasse'];
-            const hasAllHeaders = requiredHeaders.every(h => 
+            const hasAllHeaders = requiredHeaders.every(h =>
                 headers.map(header => header.toLowerCase()).includes(h.toLowerCase())
             );
-            
+
             if (!hasAllHeaders) {
                 throw new Error('CSV må ha kolonner: elev_id, fornavn, etternavn, klasse');
             }
-            
+
             // Parse elever
             const elever = [];
             for (let i = 1; i < lines.length; i++) {
                 const line = lines[i].trim();
                 if (!line) continue;
-                
+
                 const values = line.split(',').map(v => v.trim());
                 const elev = {};
                 headers.forEach((header, index) => {
                     elev[header.toLowerCase()] = values[index];
                 });
-                
+
+                // Legg til faggruppe som tom string om det ikkje finst
+                if (!elev.faggruppe) {
+                    elev.faggruppe = '';
+                }
+
+                // Legg til fag som tom string om det ikkje finst
+                if (!elev.fag) {
+                    elev.fag = '';
+                }
+
                 if (elev.elev_id && elev.fornavn && elev.etternavn && elev.klasse) {
                     elever.push(elev);
                 }
@@ -1954,6 +1979,89 @@ async function importerEleverCSV(event) {
     };
     
     reader.readAsText(file);
+}
+
+// Funksjon for å fikse elevdata - ekstrahere klassenamn frå fornamn
+async function fiksElevdata() {
+    console.log('🔧 Startar fiksing av elevdata...');
+
+    const transaction = db.transaction(['elever'], 'readwrite');
+    const store = transaction.objectStore('elever');
+    const request = store.getAll();
+
+    return new Promise((resolve) => {
+        request.onsuccess = async () => {
+            const elever = request.result;
+            console.log(`📊 ${elever.length} elevar i database`);
+
+            if (elever.length > 0) {
+                console.log('📋 Første elev:', elever[0]);
+                console.log('fornamn:', elever[0].fornamn);
+                console.log('etternamn:', elever[0].etternamn);
+                console.log('fag:', elever[0].fag);
+                console.log('klasse:', elever[0].klasse);
+                console.log('faggruppe:', elever[0].faggruppe);
+            }
+
+            let oppdatert = 0;
+            let manglendeFaggruppe = 0;
+            let harKlasseMenIkkeFaggruppe = 0;
+
+            for (const elev of elever) {
+                let endret = false;
+
+                // Sjekk om fornamn startar med klassenamn-mønster (t.d. 1ST1, 2NA3, 3KR1)
+                // Mønster: siffer + 1-4 bokstavar + valfritt siffer + mellomrom
+                const klassenavnMatch = elev.fornamn?.match(/^(\d[A-ZÆØÅ]{1,4}\d?)\s+(.+)$/);
+
+                if (klassenavnMatch && (!elev.klasse || elev.klasse === 'undefined')) {
+                    const klassenamn = klassenavnMatch[1];
+                    const reeltFornamn = klassenavnMatch[2];
+
+                    elev.klasse = klassenamn;
+                    elev.fornamn = reeltFornamn;
+                    endret = true;
+                    console.log(`✅ Ekstraherte klasse "${klassenamn}" frå fornamn: ${elev.fornamn}`);
+                }
+
+                // Sjekk om faggruppe manglar
+                if (!elev.faggruppe || elev.faggruppe === '') {
+                    manglendeFaggruppe++;
+                    // Set faggruppe til tom string om det ikkje finst
+                    if (elev.faggruppe === undefined) {
+                        elev.faggruppe = '';
+                        endret = true;
+                    }
+                }
+
+                // Sjekk om fag manglar
+                if (elev.fag === undefined) {
+                    elev.fag = '';
+                    endret = true;
+                }
+
+                if (elev.klasse && elev.klasse !== 'undefined' && (!elev.faggruppe || elev.faggruppe === '')) {
+                    harKlasseMenIkkeFaggruppe++;
+                }
+
+                // Lagre endringane om noko blei endra
+                if (endret) {
+                    await store.put(elev);
+                    oppdatert++;
+                }
+            }
+
+            console.log(`✅ ${oppdatert} elevar oppdatert`);
+            console.log(`⚠️ ${manglendeFaggruppe} elevar manglar faggruppe`);
+            console.log(`⚠️ ${harKlasseMenIkkeFaggruppe} elevar har klasse men ikkje faggruppe`);
+
+            if (oppdatert > 0) {
+                visToast(`${oppdatert} elevar oppdatert med klassenamn!`, 'success');
+            }
+
+            resolve(oppdatert);
+        };
+    });
 }
 
 async function eksporterAlt() {
