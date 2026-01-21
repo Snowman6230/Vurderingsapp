@@ -1591,27 +1591,41 @@ function lukkOppsummeringModal() {
 }
 
 // Klasseoversikt funksjoner
-async function oppdaterFagoversikt() {
-    const klasse = document.getElementById('oversikt-faggruppe').value;
-    const fag = document.getElementById('oversikt-fag').value;
-    const skoleaar = document.getElementById('oversikt-skoleaar').value;
-    const semester = document.getElementById('oversikt-semester').value;
-    const sortering = document.getElementById('oversikt-sortering').value;
+// KOMMENTERT UT: Denne funksjonen kolliderte med oppdaterFagoversikt() i enhancements.js
+// og forårsaka null-referanse feil. Elementane den prøvde å lese finst ikkje i HTML.
+/*
+async function oppdaterElevoversikt() {
+    const klasseSel = document.getElementById('oversikt-faggruppe');
+    const fagSel = document.getElementById('oversikt-fag');
+    const skoleaarSel = document.getElementById('oversikt-skoleaar');
+    const semesterSel = document.getElementById('oversikt-semester');
+    const sorteringSel = document.getElementById('oversikt-sortering');
     const tabell = document.getElementById('oversikt-tabell');
-    
+
+    // Null-sjekk - returner om vi ikkje er i elevoversikt-view
+    if (!klasseSel || !fagSel || !tabell) {
+        return;
+    }
+
+    const klasse = klasseSel.value;
+    const fag = fagSel.value;
+    const skoleaar = skoleaarSel ? skoleaarSel.value : '';
+    const semester = semesterSel ? semesterSel.value : '';
+    const sortering = sorteringSel ? sorteringSel.value : 'etternavn';
+
     // Oppdater fagliste
     await oppdaterFagSelect();
-    
+
     if (!klasse || !fag) {
         tabell.innerHTML = '<p>Velg klasse og fag</p>';
         return;
     }
-    
+
     const elever = await hentEleverIKlasse(klasse);
     const alleVurderinger = await hentAlleVurderinger();
     const innstillinger = await hentInnstillinger();
     const varselDager = innstillinger.varselDager || 30;
-    
+
     // Filtrer vurderinger
     const vurderinger = alleVurderinger.filter(v => {
         if (v.fag !== fag) return false;
@@ -1619,21 +1633,21 @@ async function oppdaterFagoversikt() {
         if (semester && v.semester !== semester) return false;
         return true;
     });
-    
+
     // Bygg oversiktsdata
     const oversiktData = elever.map(elev => {
         const elevVurderinger = vurderinger.filter(v => v.elev_id === elev.elev_id);
         const sisteVurdering = elevVurderinger.sort((a, b) => new Date(b.dato) - new Date(a.dato))[0];
-        
+
         return {
             elev: elev,
             sisteVurdering: sisteVurdering,
-            dagerSiden: sisteVurdering ? 
-                Math.floor((new Date() - new Date(sisteVurdering.dato)) / (1000 * 60 * 60 * 24)) : 
+            dagerSiden: sisteVurdering ?
+                Math.floor((new Date() - new Date(sisteVurdering.dato)) / (1000 * 60 * 60 * 24)) :
                 999
         };
     });
-    
+
     // Sorter data
     oversiktData.sort((a, b) => {
         switch(sortering) {
@@ -1650,7 +1664,7 @@ async function oppdaterFagoversikt() {
                 return 0;
         }
     });
-    
+
     // Generer tabell
     tabell.innerHTML = `
         <table>
@@ -1660,25 +1674,25 @@ async function oppdaterFagoversikt() {
                     <th>Sist vurdert</th>
                     <th>Vurdering</th>
                     <th>Tema</th>
-                    <th>Handlinger</th>
+                    <th>Handlingar</th>
                 </tr>
             </thead>
             <tbody>
                 ${oversiktData.map(data => {
                     const manglerVurdering = data.dagerSiden > varselDager;
                     const klasse = manglerVurdering ? 'mangler-vurdering' : '';
-                    
+
                     return `
                         <tr class="${klasse}">
                             <td><strong>${data.elev.fornavn} ${data.elev.etternavn}</strong></td>
-                            <td>${data.sisteVurdering ? 
-                                `${formatDato(data.sisteVurdering.dato)} (${data.dagerSiden} dager siden)` : 
+                            <td>${data.sisteVurdering ?
+                                `${formatDato(data.sisteVurdering.dato)} (${data.dagerSiden} dager siden)` :
                                 'Aldri vurdert'
                             }</td>
-                            <td>${data.sisteVurdering ? 
+                            <td>${data.sisteVurdering ?
                                 `<span class="vurdering-badge ${data.sisteVurdering.hovedvurdering.toLowerCase()}">
                                     ${data.sisteVurdering.hovedvurdering}
-                                </span>` : 
+                                </span>` :
                                 '-'
                             }</td>
                             <td>${data.sisteVurdering?.tema || '-'}</td>
@@ -1694,6 +1708,7 @@ async function oppdaterFagoversikt() {
         </table>
     `;
 }
+*/
 
 async function oppdaterFagSelect() {
     const fagliste = await hentFagNamn();
