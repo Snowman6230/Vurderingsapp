@@ -430,13 +430,18 @@ async function visVerbbibliotek(fagId, fagNavn) {
 
             <!-- Tab-innhald -->
             <div id="verb-tab-standard" class="verb-tab-content active">
-                ${lagVerbTabell(verbbibliotek.standard)}
+                ${lagVerbTabell(verbbibliotek.standard, 'standard', fagId)}
             </div>
             <div id="verb-tab-læreplan" class="verb-tab-content" style="display: none;">
-                ${lagVerbTabell(verbbibliotek.fraaLæreplan)}
+                ${lagVerbTabell(verbbibliotek.fraaLæreplan, 'læreplan', fagId)}
+                ${verbbibliotek.fraaLæreplan.length > 0 ? `
+                    <div style="margin-top: 1.5rem; display: flex; justify-content: flex-end;">
+                        <button class="btn-danger" onclick="slettAlleVerbFråLæreplan(${fagId}, '${fagNavn}')">🗑️ Slett alle verb</button>
+                    </div>
+                ` : ''}
             </div>
             <div id="verb-tab-eigne" class="verb-tab-content" style="display: none;">
-                ${lagVerbTabell(verbbibliotek.eigne)}
+                ${lagVerbTabell(verbbibliotek.eigne, 'eigne', fagId)}
                 <div style="margin-top: 1.5rem;">
                     <button class="btn-success" onclick="visLeggTilVerbDialog(${fagId}, '${fagNavn}')">➕ Legg til verb</button>
                     <button class="btn-secondary" onclick="visLastOppVerblisteDialog(${fagId})">📥 Last opp verbliste (DOCX)</button>
@@ -473,10 +478,12 @@ async function visVerbbibliotek(fagId, fagNavn) {
 /**
  * Lag HTML-tabell for verb
  */
-function lagVerbTabell(verb) {
+function lagVerbTabell(verb, kategori, fagId) {
     if (verb.length === 0) {
         return '<p style="text-align: center; color: #95a5a6; padding: 2rem;">Ingen verb funne</p>';
     }
+
+    const visSlett = kategori === 'læreplan' || kategori === 'eigne';
 
     return `
         <table style="width: 100%; border-collapse: collapse;">
@@ -484,6 +491,7 @@ function lagVerbTabell(verb) {
                 <tr style="background: var(--dark); color: white;">
                     <th style="padding: 0.75rem; text-align: left; width: 25%;">Verb</th>
                     <th style="padding: 0.75rem; text-align: left;">Tyding</th>
+                    ${visSlett ? '<th style="padding: 0.75rem; text-align: center; width: 100px;">Handling</th>' : ''}
                 </tr>
             </thead>
             <tbody>
@@ -491,6 +499,16 @@ function lagVerbTabell(verb) {
                     <tr style="border-bottom: 1px solid #ddd;">
                         <td style="padding: 0.75rem; font-weight: 500;">${v.verb}</td>
                         <td style="padding: 0.75rem;">${v.tyding}</td>
+                        ${visSlett ? `
+                            <td style="padding: 0.75rem; text-align: center;">
+                                <button
+                                    onclick="slettEinzeltVerb(${fagId}, '${kategori}', '${v.verb.replace(/'/g, "\\\'")}')"
+                                    style="background: #dc3545; color: white; border: none; padding: 0.25rem 0.5rem; border-radius: 3px; cursor: pointer; font-size: 0.85rem;"
+                                    title="Slett ${v.verb}">
+                                    ✕
+                                </button>
+                            </td>
+                        ` : ''}
                     </tr>
                 `).join('')}
             </tbody>
@@ -555,6 +573,135 @@ function visLastOppVerblisteDialog(fagId) {
 }
 
 // ========================================
+// SLETTING AV VERB
+// ========================================
+
+/**
+ * Slett eit enkelt verb frå læreplan eller eigne verb
+ */
+async function slettEinzeltVerb(fagId, kategori, verbNamn) {
+    if (!confirm(`Er du sikker på at du vil slette verbet "${verbNamn}"?`)) {
+        return;
+    }
+
+    const db = await openDatabase();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['fag'], 'readwrite');
+        const fagStore = transaction.objectStore('fag');
+        const request = fagStore.get(fagId);
+
+        request.onsuccess = () => {
+            const fag = request.result;
+            if (!fag) {
+                console.error('Fag ikkje funne');
+                reject(new Error('Fag ikkje funne'));
+                return;
+            }
+
+            // Slett frå riktig array
+            if (kategori === 'læreplan') {
+                if (!fag.verbFraaLæreplan) {
+                    console.warn('Ingen verb frå læreplan å slette');
+                    resolve();
+                    return;
+                }
+                fag.verbFraaLæreplan = fag.verbFraaLæreplan.filter(v => v.verb !== verbNamn);
+                console.log(`Slettar verb "${verbNamn}" frå læreplan. ${fag.verbFraaLæreplan.length} verb att.`);
+            } else if (kategori === 'eigne') {
+                if (!fag.eigneVerb) {
+                    console.warn('Ingen eigne verb å slette');
+                    resolve();
+                    return;
+                }
+                fag.eigneVerb = fag.eigneVerb.filter(v => v.verb !== verbNamn);
+                console.log(`Slettar verb "${verbNamn}" frå eigne verb. ${fag.eigneVerb.length} verb att.`);
+            }
+
+            // Lagre oppdatert fag
+            const updateRequest = fagStore.put(fag);
+
+            updateRequest.onsuccess = () => {
+                console.log(`✓ Verb "${verbNamn}" sletta`);
+                // Oppdater UI ved å lukke og opne modal på nytt
+                const modal = document.querySelector('.modal');
+                if (modal) {
+                    const fagNavn = fag.namn;
+                    document.body.removeChild(modal);
+                    setTimeout(() => visVerbbibliotek(fagId, fagNavn), 100);
+                }
+                resolve();
+            };
+
+            updateRequest.onerror = () => {
+                console.error('Feil ved lagring:', updateRequest.error);
+                reject(updateRequest.error);
+            };
+        };
+
+        request.onerror = () => {
+            console.error('Feil ved henting av fag:', request.error);
+            reject(request.error);
+        };
+    });
+}
+
+/**
+ * Slett alle verb frå læreplan
+ */
+async function slettAlleVerbFråLæreplan(fagId, fagNavn) {
+    if (!confirm(`Er du sikker på at du vil slette ALLE verb frå læreplanen for ${fagNavn}?\n\nDette kan ikkje angrast.`)) {
+        return;
+    }
+
+    const db = await openDatabase();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['fag'], 'readwrite');
+        const fagStore = transaction.objectStore('fag');
+        const request = fagStore.get(fagId);
+
+        request.onsuccess = () => {
+            const fag = request.result;
+            if (!fag) {
+                console.error('Fag ikkje funne');
+                reject(new Error('Fag ikkje funne'));
+                return;
+            }
+
+            const verbTal = fag.verbFraaLæreplan ? fag.verbFraaLæreplan.length : 0;
+
+            // Tøm verb-array
+            fag.verbFraaLæreplan = [];
+
+            // Lagre oppdatert fag
+            const updateRequest = fagStore.put(fag);
+
+            updateRequest.onsuccess = () => {
+                console.log(`✓ ${verbTal} verb sletta frå læreplan`);
+                // Oppdater UI ved å lukke og opne modal på nytt
+                const modal = document.querySelector('.modal');
+                if (modal) {
+                    document.body.removeChild(modal);
+                    setTimeout(() => visVerbbibliotek(fagId, fagNavn), 100);
+                }
+                resolve();
+            };
+
+            updateRequest.onerror = () => {
+                console.error('Feil ved lagring:', updateRequest.error);
+                reject(updateRequest.error);
+            };
+        };
+
+        request.onerror = () => {
+            console.error('Feil ved henting av fag:', request.error);
+            reject(request.error);
+        };
+    });
+}
+
+// ========================================
 // HJELPEFUNKSJONAR
 // ========================================
 
@@ -579,4 +726,6 @@ window.lastOppLæreplan = lastOppLæreplan;
 window.lastOppVerbliste = lastOppVerbliste;
 window.visVerbbibliotek = visVerbbibliotek;
 window.visLastOppVerblisteDialog = visLastOppVerblisteDialog;
+window.slettEinzeltVerb = slettEinzeltVerb;
+window.slettAlleVerbFråLæreplan = slettAlleVerbFråLæreplan;
 window.STANDARD_VERB = STANDARD_VERB;
