@@ -418,6 +418,117 @@ initSlettingUI();
     }
 });
 
+// Hent fag som array av namn (til bruk i dropdowns osv)
+async function hentFagNamn() {
+    if (!db) await initDB();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['fag'], 'readonly');
+        const fagStore = transaction.objectStore('fag');
+        const request = fagStore.getAll();
+
+        request.onsuccess = () => {
+            const fagObjekter = request.result || [];
+            const fagNamn = fagObjekter.map(f => f.namn);
+
+            // Fallback til standardFag om ingen fag finst
+            if (fagNamn.length === 0) {
+                resolve(standardFag);
+            } else {
+                resolve(fagNamn);
+            }
+        };
+
+        request.onerror = () => {
+            console.error('Feil ved henting av fagnamn:', request.error);
+            resolve(standardFag);
+        };
+    });
+}
+
+// Migrer fagliste frå innstillingar til fag object store
+async function migrerFaglisteTilFagStore() {
+    if (!db) return;
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['fag', 'innstillinger'], 'readwrite');
+        const fagStore = transaction.objectStore('fag');
+        const innstillingarStore = transaction.objectStore('innstillinger');
+
+        // Sjekk om fag object store allereie har data
+        const countRequest = fagStore.count();
+
+        countRequest.onsuccess = () => {
+            if (countRequest.result > 0) {
+                // Fag finst allereie, ingen migrasjon nødvendig
+                console.log('✓ Fag object store har allereie data, hoppar over migrasjon');
+                resolve();
+                return;
+            }
+
+            // Hent fagliste frå innstillingar
+            const innstillingarRequest = innstillingarStore.get('fagliste');
+
+            innstillingarRequest.onsuccess = () => {
+                let fagliste = [];
+
+                if (innstillingarRequest.result && innstillingarRequest.result.value) {
+                    fagliste = innstillingarRequest.result.value;
+                    console.log('Migrerer fagliste frå innstillingar:', fagliste);
+                } else {
+                    // Bruk standardFag om ingen fagliste finst
+                    fagliste = standardFag;
+                    console.log('Ingen fagliste funne, brukar standardFag:', fagliste);
+                }
+
+                // Legg til kvar fag i fag object store
+                let migrerteTal = 0;
+                fagliste.forEach((fagNamn, index) => {
+                    const fagObjekt = {
+                        namn: fagNamn,
+                        aktiv: true,
+                        læreplanKopla: false
+                    };
+
+                    const addRequest = fagStore.add(fagObjekt);
+
+                    addRequest.onsuccess = () => {
+                        migrerteTal++;
+                        if (migrerteTal === fagliste.length) {
+                            console.log(`✓ Migrert ${migrerteTal} fag til fag object store`);
+                            resolve();
+                        }
+                    };
+
+                    addRequest.onerror = () => {
+                        console.error(`Feil ved migrasjon av fag "${fagNamn}":`, addRequest.error);
+                        migrerteTal++;
+                        if (migrerteTal === fagliste.length) {
+                            resolve();
+                        }
+                    };
+                });
+
+                // Handsam tom fagliste
+                if (fagliste.length === 0) {
+                    console.log('✓ Ingen fag å migrere');
+                    resolve();
+                }
+            };
+
+            innstillingarRequest.onerror = () => {
+                console.error('Feil ved henting av fagliste:', innstillingarRequest.error);
+                resolve(); // Fortsett sjølv om migrasjon feilar
+            };
+        };
+
+        countRequest.onerror = () => {
+            console.error('Feil ved sjekk av fag object store:', countRequest.error);
+            resolve(); // Fortsett sjølv om migrasjon feilar
+        };
+    });
+}
+
 // Initialiser IndexedDB
 async function initDB() {
     return new Promise((resolve, reject) => {
@@ -429,10 +540,14 @@ async function initDB() {
             reject(request.error);
         };
         
-        request.onsuccess = () => {
+        request.onsuccess = async () => {
             db = request.result;
             console.log(`✓ Database opna: ${db.name}, versjon: ${db.version}`);
             console.log('Object stores:', Array.from(db.objectStoreNames));
+
+            // Migrer fagliste frå innstillingar til fag object store
+            await migrerFaglisteTilFagStore();
+
             resolve();
         };
         
@@ -834,12 +949,11 @@ function velgElev(elev, index) {
 
 async function visVurderingsskjema() {
     const skjema = document.getElementById('hurtig-skjema');
-    const innstillinger = await hentInnstillinger();
-    const fagliste = innstillinger.fagliste || standardFag;
-    
+    const fagliste = await hentFagNamn();
+
     skjema.innerHTML = `
         <h4>${valgtElev.fornavn} ${valgtElev.etternavn}</h4>
-        
+
         <div class="skjema-gruppe">
             <label>Fag:</label>
             <select id="vurd-fag">
@@ -1582,11 +1696,10 @@ async function oppdaterFagoversikt() {
 }
 
 async function oppdaterFagSelect() {
-    const innstillinger = await hentInnstillinger();
-    const fagliste = innstillinger.fagliste || standardFag;
+    const fagliste = await hentFagNamn();
     const fagSelect = document.getElementById('oversikt-fag');
     const currentFag = fagSelect.value;
-    
+
     fagSelect.innerHTML = '<option value="">-- Velg fag --</option>';
     fagliste.forEach(fag => {
         const option = document.createElement('option');
@@ -1594,7 +1707,7 @@ async function oppdaterFagSelect() {
         option.textContent = fag;
         fagSelect.appendChild(option);
     });
-    
+
     if (currentFag) {
         fagSelect.value = currentFag;
     }
@@ -1732,8 +1845,7 @@ async function oppdaterFilterlister() {
 async function redigerVurdering(vurderingId) {
     const vurdering = await hentVurdering(vurderingId);
     const elev = await hentElev(vurdering.elev_id);
-    const innstillinger = await hentInnstillinger();
-    const fagliste = innstillinger.fagliste || standardFag;
+    const fagliste = await hentFagNamn();
     
     const modal = document.getElementById('detalj-modal');
     const innhold = document.getElementById('detalj-innhold');
@@ -1838,16 +1950,32 @@ async function visInnstillinger() {
     oppdaterSletteKontroller();
 
     const innstillinger = await hentInnstillinger();
-    const fagliste = innstillinger.fagliste || standardFag;
-    
-    // Vis fagliste
-    const faglisteDiv = document.getElementById('fagliste');
-    faglisteDiv.innerHTML = fagliste.map(fag => `
-        <div class="fag-tag">
-            <span>${fag}</span>
-            <button onclick="fjernFag('${fag}')">×</button>
-        </div>
-    `).join('');
+
+    if (!db) await initDB();
+
+    // Hent fagliste frå fag object store
+    const transaction = db.transaction(['fag'], 'readonly');
+    const fagStore = transaction.objectStore('fag');
+    const request = fagStore.getAll();
+
+    request.onsuccess = () => {
+        const fagArray = request.result || [];
+
+        // Vis fagliste
+        const faglisteDiv = document.getElementById('fagliste');
+        if (faglisteDiv) {
+            faglisteDiv.innerHTML = fagArray.map(fagObjekt => `
+                <div class="fag-tag">
+                    <span>${fagObjekt.namn}</span>
+                    <button onclick="fjernFag('${fagObjekt.namn}')">×</button>
+                </div>
+            `).join('');
+        }
+    };
+
+    request.onerror = () => {
+        console.error('Feil ved henting av fag:', request.error);
+    };
 
     // Sett innstillinger (med null-sjekk)
     const autoforslagToggle = document.getElementById('autoforslag-toggle');
@@ -1867,30 +1995,86 @@ async function visInnstillinger() {
 async function leggTilFag() {
     const nyttFag = document.getElementById('nytt-fag').value.trim();
     if (!nyttFag) return;
-    
-    const innstillinger = await hentInnstillinger();
-    const fagliste = innstillinger.fagliste || standardFag;
-    
-    if (!fagliste.includes(nyttFag)) {
-        fagliste.push(nyttFag);
-        await lagreInnstilling('fagliste', fagliste);
-        document.getElementById('nytt-fag').value = '';
-        visInnstillinger();
-        visToast('Fag lagt til!', 'success');
-    }
+
+    if (!db) await initDB();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['fag'], 'readwrite');
+        const fagStore = transaction.objectStore('fag');
+        const index = fagStore.index('namn');
+        const request = index.get(nyttFag);
+
+        request.onsuccess = () => {
+            if (request.result) {
+                // Fag finst allereie
+                visToast('Faget finst allereie!', 'warning');
+                resolve();
+            } else {
+                // Legg til nytt fag
+                const fagObjekt = {
+                    namn: nyttFag,
+                    aktiv: true,
+                    læreplanKopla: false
+                };
+                const addRequest = fagStore.add(fagObjekt);
+
+                addRequest.onsuccess = () => {
+                    document.getElementById('nytt-fag').value = '';
+                    visInnstillingar();
+                    visToast('Fag lagt til!', 'success');
+                    resolve();
+                };
+
+                addRequest.onerror = () => {
+                    console.error('Feil ved lagring av fag:', addRequest.error);
+                    visToast('Feil ved lagring av fag', 'error');
+                    reject(addRequest.error);
+                };
+            }
+        };
+
+        request.onerror = () => {
+            console.error('Feil ved sjekk av fag:', request.error);
+            reject(request.error);
+        };
+    });
 }
 
-async function fjernFag(fag) {
-    const innstillinger = await hentInnstillinger();
-    const fagliste = innstillinger.fagliste || standardFag;
-    const index = fagliste.indexOf(fag);
-    
-    if (index > -1) {
-        fagliste.splice(index, 1);
-        await lagreInnstilling('fagliste', fagliste);
-        visInnstillinger();
-        visToast('Fag fjernet!', 'success');
-    }
+async function fjernFag(fagNamn) {
+    if (!db) await initDB();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['fag'], 'readwrite');
+        const fagStore = transaction.objectStore('fag');
+        const index = fagStore.index('namn');
+        const request = index.get(fagNamn);
+
+        request.onsuccess = () => {
+            if (request.result) {
+                const deleteRequest = fagStore.delete(request.result.id);
+
+                deleteRequest.onsuccess = () => {
+                    visInnstillingar();
+                    visToast('Fag fjernet!', 'success');
+                    resolve();
+                };
+
+                deleteRequest.onerror = () => {
+                    console.error('Feil ved sletting av fag:', deleteRequest.error);
+                    visToast('Feil ved sletting av fag', 'error');
+                    reject(deleteRequest.error);
+                };
+            } else {
+                visToast('Fag ikkje funne', 'warning');
+                resolve();
+            }
+        };
+
+        request.onerror = () => {
+            console.error('Feil ved søk etter fag:', request.error);
+            reject(request.error);
+        };
+    });
 }
 
 async function lagreGjeldendeSkoleaar() {
@@ -2229,11 +2413,9 @@ async function lagreInnstilling(key, value) {
 
 async function lastInnstillinger() {
     const innstillinger = await hentInnstillinger();
-    
+
     // Sett standard verdier om nødvendig
-    if (!innstillinger.fagliste) {
-        await lagreInnstilling('fagliste', standardFag);
-    }
+    // Merk: fagliste er no lagra i 'fag' object store, ikkje her
     if (innstillinger.autoforslag === undefined) {
         await lagreInnstilling('autoforslag', true);
     }
@@ -2707,7 +2889,7 @@ async function opneSluttvurdering() {
     document.getElementById('sluttv-elevinfo').textContent = elev ? `${elev.fornavn} ${elev.etternavn} (${elev.klasse})` : valgtElev;
 
     const innstillinger = await hentInnstillinger();
-    const fagliste = innstillinger.fagliste || ['Geografi', 'Samfunnskunnskap', 'Entreprenørskap 1', 'Entreprenørskap 2'];
+    const fagliste = await hentFagNamn();
 
     const fagSel = document.getElementById('sluttv-fag');
     fagSel.innerHTML = '';
@@ -2897,7 +3079,7 @@ async function initLaereplanUI() {
     const innstillinger = await hentInnstillinger();
     innstillinger.fagTilLaereplan = innstillinger.fagTilLaereplan || {};
 
-    const fagliste = innstillinger.fagliste || ['Geografi', 'Samfunnskunnskap', 'Entreprenørskap 1', 'Entreprenørskap 2'];
+    const fagliste = await hentFagNamn();
 
     const fagSel = document.getElementById('lp-fag');
     const lpValSel = document.getElementById('lp-val');
