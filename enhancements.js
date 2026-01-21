@@ -33,9 +33,20 @@ function applyFargetema(tema) {
 // FORBEDRA STADFESTINGSMELDINGAR
 // ========================================
 
-// Override den eksisterande showToast-funksjonen om den finst
-if (typeof window.showToast !== 'function') {
-    window.showToast = showToast; // Bruk den frå i18n.js
+// Toast-funksjon for å vise meldingar
+function showToast(message, duration = 3000) {
+    const toast = document.getElementById('toast');
+    if (!toast) {
+        console.warn('Toast element ikkje funne');
+        return;
+    }
+
+    toast.textContent = message;
+    toast.classList.add('show');
+
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, duration);
 }
 
 // Funksjon for å vise stadfesting med ikon
@@ -49,6 +60,9 @@ function showConfirmation(message, type = 'success') {
     const icon = icons[type] || icons.success;
     showToast(`${icon} ${message}`);
 }
+
+// Eksporter til window
+window.showToast = showToast;
 
 // ========================================
 // LAGRE-STADFESTING WRAPPER

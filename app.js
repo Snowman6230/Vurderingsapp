@@ -3,7 +3,7 @@
 
 // Database konfigurasjon
 const DB_NAME = 'VurderingsappDB';
-const DB_VERSION = 3; // Oppdatert for læreplan-funksjonalitet
+const DB_VERSION = 4; // Oppdatert til v4 (faggruppe + arkiv)
 let db;
 
 
