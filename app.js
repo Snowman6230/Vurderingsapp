@@ -1239,7 +1239,7 @@ const verb_funn = finnVerbaItekst(kompetansemaal_tekst);
         fokus: (document.getElementById('fokus') ? document.getElementById('fokus').value : ''),
         vurdering_id: genererID(),
         elev_id: valgtElev.elev_id,
-        klasse: valgtElev.klasse,
+        faggruppe: valgtElev.faggruppe,
         fag: fag,
         skoleaar: skoleaar,
         semester: semester,
@@ -1338,9 +1338,9 @@ async function visElevDetaljer(elevId) {
     });
     
     const detaljerDiv = document.getElementById('elev-detaljer');
-    
+
     detaljerDiv.innerHTML = `
-        <h2>${elev.fornavn} ${elev.etternavn} - ${elev.klasse}</h2>
+        <h2>${elev.fornavn} ${elev.etternavn} - ${elev.faggruppe}</h2>
         
         <div class="fag-accordion">
             ${Object.keys(vurderingerPerFag).map(fag => {
@@ -1735,8 +1735,8 @@ function nyVurderingForElevFag(elevId, fag) {
     
     setTimeout(async () => {
         const elev = await hentElev(elevId);
-        document.getElementById('hurtig-faggruppe').value = elev.klasse;
-        await visEleverIHurtigmodus(elev.klasse);
+        document.getElementById('hurtig-faggruppe').value = elev.faggruppe;
+        await visEleverIHurtigmodus(elev.faggruppe);
         
         // Finn og klikk på eleven
         const elevItems = document.querySelectorAll('.elev-item');
@@ -1775,7 +1775,7 @@ async function oppdaterHistorikk() {
         }
         
         // Andre filtre
-        if (klasseFilter && v.klasse !== klasseFilter) return false;
+        if (klasseFilter && v.faggruppe !== klasseFilter) return false;
         if (fagFilter && v.fag !== fagFilter) return false;
         if (skoleaarFilter && v.skoleaar !== skoleaarFilter) return false;
         if (semesterFilter && v.semester !== semesterFilter) return false;
@@ -1807,7 +1807,7 @@ async function oppdaterHistorikk() {
                     <span class="historikk-dato">${formatDato(v.dato)}</span>
                 </div>
                 <div class="historikk-detaljer">
-                    <span>Klasse: ${v.klasse}</span>
+                    <span>Faggruppe: ${v.faggruppe}</span>
                     <span>Fag: ${v.fag}</span>
                     <span>${v.skoleaar || ''} ${v.semester || ''}</span>
                     <span class="vurdering-badge ${v.hovedvurdering.toLowerCase()}">
@@ -2158,8 +2158,13 @@ async function importerEleverCSV(event) {
                 headers.forEach((header, index) => {
                     elev[header.toLowerCase()] = values[index];
                 });
-                
-                if (elev.elev_id && elev.fornavn && elev.etternavn && elev.klasse) {
+
+                // Migrer klasse til faggruppe om nødvendig
+                if (elev.klasse && !elev.faggruppe) {
+                    elev.faggruppe = elev.klasse;
+                }
+
+                if (elev.elev_id && elev.fornavn && elev.etternavn && elev.faggruppe) {
                     elever.push(elev);
                 }
             }
@@ -2227,7 +2232,7 @@ async function eksporterVurderingerCSV() {
             v.elev_id,
             elev.fornavn || '',
             elev.etternavn || '',
-            v.klasse,
+            v.faggruppe,
             v.fag,
             v.skoleaar || '',
             v.semester || '',
@@ -2337,7 +2342,7 @@ async function hentAlleElever() {
 async function hentEleverIKlasse(klasse) {
     const transaction = db.transaction(['elever'], 'readonly');
     const store = transaction.objectStore('elever');
-    const index = store.index('klasse');
+    const index = store.index('faggruppe');
     const request = index.getAll(klasse);
     
     return new Promise((resolve) => {
@@ -2451,7 +2456,7 @@ async function lastInnstillinger() {
 // UI hjelpefunksjoner
 async function lastKlasser() {
     const elever = await hentAlleElever();
-    const klasser = [...new Set(elever.map(e => e.klasse))].sort();
+    const klasser = [...new Set(elever.map(e => e.faggruppe))].sort();
     
     // Oppdater alle klassevelgere
     const selects = [
@@ -2529,7 +2534,7 @@ async function slettVurderingerForKlasse(klasse) {
 
     const tx = db.transaction(['vurderinger'], 'readwrite');
     const store = tx.objectStore('vurderinger');
-    const index = store.index('klasse');
+    const index = store.index('faggruppe');
 
     let sletta = 0;
     await new Promise((resolve, reject) => {
@@ -2590,7 +2595,7 @@ async function slettEleverForKlasse(klasse) {
 
     const tx = db.transaction(['elever'], 'readwrite');
     const store = tx.objectStore('elever');
-    const index = store.index('klasse');
+    const index = store.index('faggruppe');
 
     let eleverSletta = 0;
     await new Promise((resolve, reject) => {
@@ -2661,7 +2666,7 @@ async function oppdaterSletteKontroller() {
     if (!klasseValg1 || !klasseValg2 || !elevValg) return;
 
     const elever = await hentAlleElever();
-    const klasser = [...new Set(elever.map(e => e.klasse))].sort();
+    const klasser = [...new Set(elever.map(e => e.faggruppe))].sort();
 
     const fyllKlasser = (sel) => {
         const valgt = sel.value;
@@ -2686,7 +2691,7 @@ async function oppdaterSletteKontroller() {
         .forEach(e => {
             const opt = document.createElement('option');
             opt.value = e.elev_id;
-            opt.textContent = `${e.etternavn}, ${e.fornavn} (${e.klasse})`;
+            opt.textContent = `${e.etternavn}, ${e.fornavn} (${e.faggruppe})`;
             elevValg.appendChild(opt);
         });
     if (elevValgt) elevValg.value = elevValgt;
@@ -2762,7 +2767,7 @@ function initSlettingUI() {
             if (!elevId) return visToast('Vel elev først', 'error');
 
             const elev = await hentElev(elevId);
-            const navn = elev ? `${elev.etternavn}, ${elev.fornavn} (${elev.klasse})` : elevId;
+            const navn = elev ? `${elev.etternavn}, ${elev.fornavn} (${elev.faggruppe})` : elevId;
 
             const ok = confirm(`Slette ${navn} og alle vurderingar knytte til eleven. Stadfeste`);
             if (!ok) return;
@@ -2901,7 +2906,7 @@ async function opneSluttvurdering() {
     }
 
     const elev = await hentElev(valgtElev);
-    document.getElementById('sluttv-elevinfo').textContent = elev ? `${elev.fornavn} ${elev.etternavn} (${elev.klasse})` : valgtElev;
+    document.getElementById('sluttv-elevinfo').textContent = elev ? `${elev.fornavn} ${elev.etternavn} (${elev.faggruppe})` : valgtElev;
 
     const innstillinger = await hentInnstillinger();
     const fagliste = await hentFagNamn();
@@ -3010,7 +3015,7 @@ async function lagreSluttKlikk() {
     const karakter = parseInt(valgtRadio.value, 10);
 
     const elev = await hentElev(valgtElev);
-    const klasse = elev ? elev.klasse : '';
+    const klasse = elev ? elev.faggruppe : '';
 
     const key = `${valgtElev}__${fag}__${skoleaar}__${semester}`;
 
@@ -4041,9 +4046,9 @@ async function oppdaterGrafikkStatistikk() {
     
     // Hent vurderingar basert på filter
     let vurderinger = await hentAlleVurderingar();
-    
+
     if (klasse) {
-        vurderinger = vurderinger.filter(v => v.klasse === klasse);
+        vurderinger = vurderinger.filter(v => v.faggruppe === klasse);
     }
     
     if (fag) {
@@ -4570,8 +4575,8 @@ async function eksporterTilExcel() {
     
     let vurderinger = await hentAlleVurderingar();
     
-    vurderinger = vurderinger.filter(v => 
-        v.klasse === klasse && 
+    vurderinger = vurderinger.filter(v =>
+        v.faggruppe === klasse &&
         v.fag === fag &&
         (!skoleaar || v.skoleaar === skoleaar) &&
         (!semester || v.semester === semester)
@@ -4635,8 +4640,8 @@ async function eksporterTilPDF() {
     
     let vurderinger = await hentAlleVurderingar();
     
-    vurderinger = vurderinger.filter(v => 
-        v.klasse === klasse && 
+    vurderinger = vurderinger.filter(v =>
+        v.faggruppe === klasse &&
         v.fag === fag &&
         (!skoleaar || v.skoleaar === skoleaar) &&
         (!semester || v.semester === semester)
