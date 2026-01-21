@@ -3793,20 +3793,20 @@ function initGrafikkView() {
     const fagSel = document.getElementById('grafikk-fag');
     const skoleaarSel = document.getElementById('grafikk-skoleaar');
     
-    if (klasseSel) {
-        fyllKlasseListe(klasseSel);
+    if (faggruppeSel) {
+        fyllFaggruppeListe(faggruppeSel);
     }
-    
+
     if (fagSel) {
         fyllFagListe(fagSel);
     }
-    
+
     if (skoleaarSel) {
         fyllSkoleaarListe(skoleaarSel);
     }
-    
+
     // Event listeners
-    if (klasseSel) faggruppeSel.addEventListener('change', oppdaterGrafikkStatistikk);
+    if (faggruppeSel) faggruppeSel.addEventListener('change', oppdaterGrafikkStatistikk);
     if (fagSel) fagSel.addEventListener('change', oppdaterGrafikkStatistikk);
     if (skoleaarSel) skoleaarSel.addEventListener('change', oppdaterGrafikkStatistikk);
     
@@ -4652,6 +4652,51 @@ function forslaFerdigheter(kompetansemaalTekst) {
     }
     
     return [...new Set(forslag)];
+}
+
+// ============ DUMMY-FUNKSJONAR FOR BAKOVERKOMPATIBILITET ============
+
+// Desse funksjonane er flytta til andre modular eller er ikkje lenger nødvendige
+function fyllSkoleaarListe(selectElement) {
+    // Fyller dropdown med skoleår
+    const currentYear = new Date().getFullYear();
+    for (let i = -2; i <= 2; i++) {
+        const year = currentYear + i;
+        const option = document.createElement('option');
+        option.value = `${year}-${year + 1}`;
+        option.textContent = `${year}/${year + 1}`;
+        selectElement.appendChild(option);
+    }
+}
+
+function fyllFaggruppeListe(selectElement) {
+    // Tom implementering - faggrupper lagrast no i database
+    console.log('fyllFaggruppeListe: funksjon ikkje implementert enno');
+}
+
+function fyllFagListe(selectElement) {
+    // Tom implementering - fag lagrast no i database
+    console.log('fyllFagListe: funksjon ikkje implementert enno');
+}
+
+async function initKlasseadministrasjon() {
+    // Flytta til enhancements.js / elevadministrasjon.js
+    return Promise.resolve();
+}
+
+async function initFagadministrasjon() {
+    // Flytta til enhancements.js
+    return Promise.resolve();
+}
+
+async function initLaereplanKopling() {
+    // Flytta til verbbibliotek.js
+    return Promise.resolve();
+}
+
+async function initAdministrerLaereplaner() {
+    // Flytta til verbbibliotek.js
+    return Promise.resolve();
 }
 
 // ============ INITIALISERING ============

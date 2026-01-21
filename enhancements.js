@@ -717,4 +717,4 @@ window.visArkiv = visArkiv;
 window.oppdaterFagoversikt = oppdaterFagoversikt;
 window.visFagDetaljar = visFagDetaljar;
 window.visManuellElevDialog = visManuellElevDialog;
-window.hentElevarIFag = hentElevarIFag;
+// hentElevarIFag eksportert frå elevadministrasjon.js
