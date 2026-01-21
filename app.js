@@ -3081,13 +3081,12 @@ async function initLaereplanUI() {
 
     const fagliste = await hentFagNamn();
 
-    const fagSel = document.getElementById('lp-fag');
-    const lpValSel = document.getElementById('lp-val');
-    const lpList = document.getElementById('lp-list');
+    const fagSel = document.getElementById('lp-kople-fag');
+    const lpValSel = document.getElementById('lp-kople-plan');
     const kopleBtn = document.getElementById('lp-kople-btn');
     const uploadInput = document.getElementById('lp-upload');
 
-    if (!fagSel || !lpValSel || !lpList) return;
+    if (!fagSel || !lpValSel) return;
 
     // Fyll fag
     fagSel.innerHTML = '';
@@ -3115,12 +3114,12 @@ async function initLaereplanUI() {
         });
 
         // listbox admin
-        lpList.innerHTML = '';
+        lpAdminVelg.innerHTML = '';
         alle.forEach(lp => {
             const opt = document.createElement('option');
             opt.value = lp.id;
             opt.textContent = lp.kode ? `${lp.kode} – ${lp.tittel}` : lp.tittel;
-            lpList.appendChild(opt);
+            lpAdminVelg.appendChild(opt);
         });
 
         // set current selection based on fag
@@ -3236,6 +3235,23 @@ async function initLaereplanUI() {
         kopleBtn.onclick = saveAssignment;
     }
 
+    // Læreplan-analyse knapp
+    const parseBtn = document.getElementById('lp-parse-btn');
+    if (parseBtn && uploadInput) {
+        parseBtn.onclick = () => {
+            const file = uploadInput.files[0];
+            if (!file) {
+                visToast('Du må først velje ei fil (PDF, DOCX eller JSON)', 'warning');
+                uploadInput.click(); // Opne filveljar
+                return;
+            }
+
+            // Trigger onchange event for å parse fila
+            const event = new Event('change', { bubbles: true });
+            uploadInput.dispatchEvent(event);
+        };
+    }
+
     // Opplasting av læreplan
     if (uploadInput) {
         uploadInput.onchange = async (e) => {
@@ -3298,22 +3314,23 @@ async function initLaereplanUI() {
     }
 
     // Admin actions
-    const navnEl = document.getElementById('lp-namn');
-    const kodeEl = document.getElementById('lp-kode');
-    const kompEl = document.getElementById('lp-komp');
-    const nyBtn = document.getElementById('lp-ny');
-    const lagreBtn = document.getElementById('lp-lagre');
-    const slettBtn = document.getElementById('lp-slett');
+    const lpAdminVelg = document.getElementById('lp-admin-velg');
+    const navnEl = document.getElementById('lp-admin-tittel');
+    const kodeEl = document.getElementById('lp-admin-kode');
+    const kompEl = document.getElementById('lp-admin-maal');
+    const nyBtn = document.getElementById('lp-admin-ny');
+    const lagreBtn = document.getElementById('lp-admin-lagre');
+    const slettBtn = document.getElementById('lp-admin-slett');
 
     function clearForm() {
         if (navnEl) navnEl.value = '';
         if (kodeEl) kodeEl.value = '';
         if (kompEl) kompEl.value = '';
-        lpList.value = '';
+        lpAdminVelg.value = '';
     }
 
-    lpList.onchange = async () => {
-        const id = lpList.value;
+    lpAdminVelg.onchange = async () => {
+        const id = lpAdminVelg.value;
         if (!id) return;
         const alle = await hentAlleLaereplaner();
         const lp = alle.find(x => x.id === id);
@@ -3334,7 +3351,7 @@ async function initLaereplanUI() {
         const kode = (kodeEl.value || '').trim();
         const kompetansemaal = (kompEl.value || '').split('\n').map(x => x.trim()).filter(Boolean);
 
-        const id = lpList.value || (kode || ('LP_' + Math.random().toString(36).slice(2)));
+        const id = lpAdminVelg.value || (kode || ('LP_' + Math.random().toString(36).slice(2)));
         await lagreLaereplan({
             id,
             kode,
@@ -3343,14 +3360,14 @@ async function initLaereplanUI() {
             oppretta: new Date().toISOString()
         });
         await renderLP();
-        lpList.value = id;
+        lpAdminVelg.value = id;
         visToast('Læreplan lagra', 'success');
         await oppdaterKompetansemaalDropdown();
     };
 
     const eksporterBtn = document.getElementById('lp-eksporter');
     if (eksporterBtn) eksporterBtn.onclick = async () => {
-        const id = lpList.value;
+        const id = lpAdminVelg.value;
         if (!id) {
             visToast('Vel ei læreplan å eksportere', 'error');
             return;
@@ -3381,7 +3398,7 @@ async function initLaereplanUI() {
     };
 
     if (slettBtn) slettBtn.onclick = async () => {
-        const id = lpList.value;
+        const id = lpAdminVelg.value;
         if (!id) {
             visToast('Vel ei læreplan å slette', 'error');
             return;
