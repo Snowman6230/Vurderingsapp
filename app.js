@@ -790,7 +790,30 @@ async function visEleverIHurtigmodus(klasse) {
     elever.forEach((elev, index) => {
         const elevDiv = document.createElement('div');
         elevDiv.className = 'elev-item';
-        elevDiv.textContent = `${elev.fornavn} ${elev.etternavn}`;
+
+        // Bygg HTML med bilete om det finst
+        let elevHTML = '<div class="elev-item-content">';
+
+        // Elevbilete
+        if (elev.bilete) {
+            if (elev.bileteType === 'application/pdf') {
+                elevHTML += '<div class="elev-bilete pdf-ikon">📄</div>';
+            } else {
+                elevHTML += `<img src="${elev.bilete}" class="elev-bilete" alt="${elev.fornavn} ${elev.etternavn}">`;
+            }
+        } else {
+            elevHTML += '<div class="elev-bilete placeholder">👤</div>';
+        }
+
+        // Elevnamn
+        elevHTML += `<span class="elev-namn">${elev.fornavn} ${elev.etternavn}</span>`;
+
+        // Last opp bilete-knapp
+        elevHTML += `<button class="btn-mini last-opp-bilete-btn" onclick="event.stopPropagation(); visLastOppBileteDialog('${elev.elev_id}', '${elev.fornavn} ${elev.etternavn}')" title="Last opp bilete">📷</button>`;
+
+        elevHTML += '</div>';
+
+        elevDiv.innerHTML = elevHTML;
         elevDiv.onclick = () => velgElev(elev, index);
         elevListe.appendChild(elevDiv);
     });

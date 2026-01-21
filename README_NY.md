@@ -146,7 +146,20 @@ Elev-ID er **global identitet**. Ein elev kan vere med i fleire fag, men har sam
 
 ### Elevbilete
 
-Elevbilete kan lastast opp som PDF. Biletet er globalt per elev-ID.
+Elevbilete kan lastast opp direkte frå elevlista i Hurtigmodus.
+
+**Korleis laste opp:**
+1. Hover over ein elev i elevlista
+2. Klikk på kamera-ikonet (📷)
+3. Vel bilete (JPEG, PNG, GIF) eller PDF
+4. Maksimal filstørrelse: 5MB
+
+**Viktig:** Biletet er **globalt per elev-ID** - når du lastar opp eit bilete for ein elev, blir det automatisk synleg i alle fag der eleven er registrert.
+
+Biletet blir vist:
+- I elevlista (Hurtigmodus)
+- I identitetsdialog ved manuell registrering
+- I elevdetaljar og historikk
 
 ## ⚡ Hovudfunksjonar
 

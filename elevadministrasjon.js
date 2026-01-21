@@ -291,12 +291,21 @@ async function visIdentitetsdialog(nyElev, eksisterandeElevar) {
 
                 <p style="margin-bottom: 1rem;">Fann følgjande elev(ar) med same namn:</p>
                 ${eksisterandeElevar.map(e => `
-                    <div style="background: #fff9e6; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem;">
-                        <strong>${e.fornamn} ${e.etternamn}</strong><br>
-                        Elev-ID: ${e.elev_id}<br>
-                        Fag: ${e.fag}<br>
-                        Faggruppe: ${e.faggruppe || 'Ukjent'}
-                        ${e.bilete ? '<br>📷 Har bilete' : ''}
+                    <div style="background: #fff9e6; padding: 1rem; border-radius: 6px; margin-bottom: 0.5rem; display: flex; gap: 1rem; align-items: center;">
+                        ${e.bilete ? `
+                            <div style="flex-shrink: 0;">
+                                ${e.bileteType === 'application/pdf' ?
+                                    '<div style="width: 60px; height: 60px; background: #e74c3c; color: white; display: flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 1.5rem;">📄</div>' :
+                                    `<img src="${e.bilete}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; border: 1px solid #ddd;">`
+                                }
+                            </div>
+                        ` : ''}
+                        <div style="flex: 1;">
+                            <strong>${e.fornamn} ${e.etternamn}</strong><br>
+                            Elev-ID: ${e.elev_id}<br>
+                            Fag: ${e.fag}<br>
+                            Faggruppe: ${e.faggruppe || 'Ukjent'}
+                        </div>
                     </div>
                 `).join('')}
 
@@ -555,6 +564,185 @@ async function lagreElev(elev) {
 }
 
 // ========================================
+// ELEVBILETE-OPPLASTING
+// ========================================
+
+/**
+ * Last opp elevbilete (PDF eller bilete)
+ * Biletet lagrast globalt per elev-ID og oppdaterast i alle fag
+ */
+async function lastOppElevbilete(elevId, file) {
+    if (!file) {
+        throw new Error('Ingen fil vald');
+    }
+
+    // Sjekk filtype
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'application/pdf'];
+    if (!validTypes.includes(file.type)) {
+        throw new Error('Ugyldig filtype. Berre JPEG, PNG, GIF eller PDF er tillate.');
+    }
+
+    // Sjekk filstørrelse (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+        throw new Error('Fila er for stor. Maks 5MB.');
+    }
+
+    try {
+        // Konverter til data URL
+        const dataUrl = await filTilDataUrl(file);
+
+        // Oppdater alle instansar av eleven
+        await oppdaterElevbilete(elevId, dataUrl, file.type);
+
+        return { success: true, dataUrl };
+
+    } catch (error) {
+        console.error('Feil ved opplasting av elevbilete:', error);
+        throw error;
+    }
+}
+
+/**
+ * Konverter fil til data URL
+ */
+function filTilDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+/**
+ * Oppdater elevbilete for alle instansar av eleven (same elev_id i ulike fag)
+ */
+async function oppdaterElevbilete(elevId, dataUrl, fileType) {
+    const db = await migrerDatabase();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['elever'], 'readwrite');
+        const store = transaction.objectStore('elever');
+        const index = store.index('elev_id');
+        const request = index.openCursor(IDBKeyRange.only(elevId));
+
+        let oppdatert = 0;
+
+        request.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if (cursor) {
+                const elev = cursor.value;
+                elev.bilete = dataUrl;
+                elev.bileteType = fileType;
+                elev.bileteOppdatert = new Date().toISOString();
+
+                cursor.update(elev);
+                oppdatert++;
+                cursor.continue();
+            } else {
+                console.log(`Oppdatert bilete for ${oppdatert} instansar av elev ${elevId}`);
+                resolve(oppdatert);
+            }
+        };
+
+        request.onerror = () => reject(request.error);
+    });
+}
+
+/**
+ * Vis dialog for å laste opp elevbilete
+ */
+async function visLastOppBileteDialog(elevId, elevNamn) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close">&times;</span>
+            <h2>📷 Last opp bilete</h2>
+            <p class="hjelpetekst">Last opp bilete for <strong>${elevNamn}</strong> (ID: ${elevId})</p>
+            <p class="hjelpetekst">Biletet blir lagra globalt og vist i alle fag eleven er registrert i.</p>
+
+            <div style="margin: 1.5rem 0;">
+                <input type="file" id="elevbilete-fil" accept="image/*,.pdf" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                <p style="margin-top: 0.5rem; font-size: 0.875rem; color: #7f8c8d;">Tillatt: JPEG, PNG, GIF, PDF (maks 5MB)</p>
+            </div>
+
+            <div id="bilete-preview" style="display: none; margin: 1rem 0; text-align: center;">
+                <img id="bilete-preview-img" style="max-width: 200px; max-height: 200px; border-radius: 4px; border: 1px solid #ddd;">
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button class="btn-secondary" onclick="this.closest('.modal').remove()">Avbryt</button>
+                <button id="last-opp-bilete-btn" class="btn-success" disabled>📤 Last opp</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    const filInput = modal.querySelector('#elevbilete-fil');
+    const lastOppBtn = modal.querySelector('#last-opp-bilete-btn');
+    const preview = modal.querySelector('#bilete-preview');
+    const previewImg = modal.querySelector('#bilete-preview-img');
+
+    // Lukk-knapp
+    modal.querySelector('.close').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    // Førehandsvis bilete
+    filInput.addEventListener('change', () => {
+        const file = filInput.files[0];
+        if (file) {
+            lastOppBtn.disabled = false;
+
+            // Vis førehandsvisning om det er eit bilete
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImg.src = e.target.result;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                preview.style.display = 'none';
+            }
+        } else {
+            lastOppBtn.disabled = true;
+            preview.style.display = 'none';
+        }
+    });
+
+    // Last opp
+    lastOppBtn.addEventListener('click', async () => {
+        const file = filInput.files[0];
+        if (!file) return;
+
+        try {
+            lastOppBtn.disabled = true;
+            lastOppBtn.textContent = '⏳ Lastar opp...';
+
+            await lastOppElevbilete(elevId, file);
+
+            showConfirmation(`Bilete lasta opp for ${elevNamn}`, 'success');
+            document.body.removeChild(modal);
+
+            // Oppdater fagoversikt om funksjon finst
+            if (typeof oppdaterFagoversikt === 'function') {
+                await oppdaterFagoversikt();
+            }
+
+        } catch (error) {
+            showConfirmation('Feil: ' + error.message, 'error');
+            lastOppBtn.disabled = false;
+            lastOppBtn.textContent = '📤 Last opp';
+        }
+    });
+}
+
+// ========================================
 // EKSPORTER FUNKSJONAR
 // ========================================
 
@@ -562,3 +750,5 @@ window.visCSVImportDialog = visCSVImportDialog;
 window.visVismaLimInnDialog = visVismaLimInnDialog;
 window.leggTilElevManuelt = leggTilElevManuelt;
 window.søkElevEtterNamn = søkElevEtterNamn;
+window.lastOppElevbilete = lastOppElevbilete;
+window.visLastOppBileteDialog = visLastOppBileteDialog;

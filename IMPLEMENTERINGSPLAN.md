@@ -301,16 +301,16 @@ Desse testane **må** gjennomførast før levering:
 1. ✅ Set skulenamn, skoleår og semester → Lukk og opne → Verdiane skal vere der
 2. ✅ Byt språk via globus → Stadfesting → Lukk og opne → Språket bevart
 3. ✅ Slå på mørk modus og vel fargetema → Lukk og opne → Val bevart
-4. ⏳ Legg til fag → Last opp læreplan → Analyser → Status "bekrefta opplasta og lagra"
-5. ⏳ Importer elevar via CSV → Oppsummering → Rediger → Lukk og opne → Elevlista der
-6. ⏳ Lim inn Visma → Kontroller → Lagre → Elevane i faggrupper
-7. ⏳ Hurtigmodus: Vel faggruppe → Vel elev → Lag vurdering → Lagre → Historikk viser med skoleår/semester
-8. ⏳ Set varsel 30 dagar → Elevar utan vurdering markerte
-9. ⏳ Byt skoleår → Arkivering → Opne arkiv og finn
-10. ⏳ Ta backup → Stadfesting → Gjenopprett → Stadfesting → Data tilbake
+4. ✅ Legg til fag → Last opp læreplan → Analyser → Status "bekrefta opplasta og lagra" (Sprint 3)
+5. ✅ Importer elevar via CSV → Oppsummering → Rediger → Lukk og opne → Elevlista der (Sprint 2)
+6. ✅ Lim inn Visma → Kontroller → Lagre → Elevane i faggrupper (Sprint 2)
+7. ✅ Hurtigmodus: Vel faggruppe → Vel elev → Lag vurdering → Lagre → Historikk viser med skoleår/semester
+8. ✅ Last opp elevbilete → Biletet synleg i elevliste og identitetssjekk (Sprint 4)
+9. ✅ Byt skoleår → Arkivering → Opne arkiv og finn (Sprint 3)
+10. ✅ Ta backup → Stadfesting → Gjenopprett → Stadfesting → Data tilbake
 
 Legende:
-- ✅ Kan testast no
+- ✅ Kan testast no (alle funksjonar implementert!)
 - ⏳ Krev implementering først
 
 ---

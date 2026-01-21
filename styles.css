@@ -193,6 +193,72 @@ nav {
     border: 2px dashed var(--secondary);
 }
 
+.elev-item-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.elev-bilete {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 2px solid #ddd;
+}
+
+.elev-bilete.placeholder {
+    background: #ecf0f1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: #95a5a6;
+}
+
+.elev-bilete.pdf-ikon {
+    background: #e74c3c;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.elev-namn {
+    flex: 1;
+    font-weight: 500;
+}
+
+.elev-item.valgt .elev-namn {
+    color: white;
+}
+
+.last-opp-bilete-btn {
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.elev-item:hover .last-opp-bilete-btn {
+    opacity: 1;
+}
+
+.btn-mini {
+    background: var(--secondary);
+    color: white;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.btn-mini:hover {
+    background: var(--dark);
+}
+
 /* Vurderingsskjema */
 .vurdering-skjema {
     display: flex;
@@ -1294,6 +1360,15 @@ body.dark-mode .elev-item:hover,
 body.dark-mode .fag-header:hover,
 body.dark-mode .historikk-item:hover {
     background: #3d5770;
+}
+
+body.dark-mode .elev-bilete {
+    border-color: #4a5f7f;
+}
+
+body.dark-mode .elev-bilete.placeholder {
+    background: #34495e;
+    color: #7f8c8d;
 }
 
 body.dark-mode .fag-header {
