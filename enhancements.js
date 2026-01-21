@@ -460,7 +460,7 @@ async function visFagDetaljar(fagNamn) {
                 <h3>Elevadministrasjon</h3>
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;">
                     <button onclick="visCSVImportDialog('${fagNamn}')" class="btn-success">📥 CSV-import</button>
-                    <button onclick="visVismaLimInnDialog('${fagNamn}')" class="btn-success">📋 Visma lim inn</button>
+                    <button onclick="visVismaPDFDialog('${fagNamn}')" class="btn-success">📄 Last opp Visma PDF</button>
                     <button onclick="visManuellElevDialog('${fagNamn}')" class="btn-secondary">➕ Manuell legg til</button>
                 </div>
             </div>
@@ -623,6 +623,257 @@ function visManuellElevDialog(fag) {
             console.error(error);
         }
     });
+}
+
+/**
+ * Vis dialog for opplasting av Visma PDF
+ */
+async function visVismaPDFDialog(fag) {
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 900px;">
+            <span class="close">&times;</span>
+            <h2>📄 Last opp Visma PDF til ${fag}</h2>
+
+            <div style="margin: 1.5rem 0;">
+                <p class="hjelpetekst">Last opp PDF-elevliste frå Visma. Appen vil automatisk finne elevnamn, faggrupper og elevbilete.</p>
+
+                <input type="file" id="visma-pdf-input" accept=".pdf" style="margin: 1rem 0; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; width: 100%;">
+
+                <button id="visma-pdf-parse-btn" class="btn-primary" style="margin-top: 0.5rem;">🔍 Analyser PDF</button>
+            </div>
+
+            <div id="visma-pdf-resultat" style="margin: 1.5rem 0; display: none;"></div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                <button id="visma-pdf-cancel-btn" class="btn-secondary">Avbryt</button>
+                <button id="visma-pdf-import-btn" class="btn-success" style="display: none;">✓ Lagre elevar</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    let parsedeElevar = [];
+
+    // Event listeners
+    modal.querySelector('.close').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    modal.querySelector('#visma-pdf-cancel-btn').addEventListener('click', () => {
+        document.body.removeChild(modal);
+    });
+
+    modal.querySelector('#visma-pdf-parse-btn').addEventListener('click', async () => {
+        const fileInput = modal.querySelector('#visma-pdf-input');
+        const file = fileInput.files[0];
+
+        if (!file) {
+            showConfirmation('Vel ei PDF-fil først', 'error');
+            return;
+        }
+
+        try {
+            showConfirmation('Analyserer PDF...', 'info');
+            parsedeElevar = await parseVismaPDF(file);
+
+            if (parsedeElevar.length === 0) {
+                showConfirmation('Fann ingen elevar i PDF-en', 'error');
+                return;
+            }
+
+            visVismaPDFResultat(modal, parsedeElevar);
+            modal.querySelector('#visma-pdf-import-btn').style.display = 'inline-block';
+            showConfirmation(`Fann ${parsedeElevar.length} elevar med bilete!`, 'success');
+
+        } catch (error) {
+            console.error('Feil ved parsing av PDF:', error);
+            showConfirmation('Feil ved parsing av PDF: ' + error.message, 'error');
+        }
+    });
+
+    modal.querySelector('#visma-pdf-import-btn').addEventListener('click', async () => {
+        // Lagre elevar med bilete
+        let lagra = 0;
+        for (const elev of parsedeElevar) {
+            try {
+                await leggTilElevManuelt(fag, elev.fornamn, elev.etternamn, elev.faggruppe, '');
+                // TODO: Lagre bilete til database
+                lagra++;
+            } catch (error) {
+                console.error('Feil ved lagring av elev:', elev, error);
+            }
+        }
+
+        showConfirmation(`Lagra ${lagra} av ${parsedeElevar.length} elevar`, 'success');
+        document.body.removeChild(modal);
+
+        // Oppdater fagoversikt
+        await oppdaterFagoversikt();
+    });
+}
+
+/**
+ * Parse Visma PDF og ekstraher elevar med bilete
+ */
+async function parseVismaPDF(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+
+    const elevar = [];
+
+    // Side 1: Hent elevnamn frå tabell
+    const page1 = await pdf.getPage(1);
+    const textContent1 = await page1.getTextContent();
+
+    // Samle alle tekstelement med posisjon
+    const items = textContent1.items;
+
+    // Finn linjer som startar med nummer (01, 02, etc.)
+    let currentElev = null;
+    for (let i = 0; i < items.length; i++) {
+        const text = items[i].str.trim();
+
+        // Sjekk om dette er eit radnummer (01-99)
+        if (/^\d{2}$/.test(text)) {
+            // Neste 3 element skal vere: Klasse, Fornamn(+), Etternamn
+            if (i + 2 < items.length) {
+                currentElev = {
+                    faggruppe: items[i+1].str.trim(),
+                    namnDelar: []
+                };
+            }
+        } else if (currentElev && !text.match(/Hans|Petter|Brunstad|Sørensen/)) {
+            // Samle namn-delar til vi treff lærarnamnet
+            if (text && text.length > 1) {
+                currentElev.namnDelar.push(text);
+            }
+        } else if (currentElev && text === 'Hans') {
+            // Vi har truffe lærarnamnet, lagre eleven
+            if (currentElev.namnDelar.length >= 2) {
+                const etternamn = currentElev.namnDelar[currentElev.namnDelar.length - 1];
+                const fornamn = currentElev.namnDelar.slice(0, -1).join(' ');
+
+                elevar.push({
+                    fornamn,
+                    etternamn,
+                    faggruppe: currentElev.faggruppe,
+                    bilete: null
+                });
+            }
+            currentElev = null;
+        }
+    }
+
+    console.log(`Fann ${elevar.length} elevar frå side 1`);
+
+    // Side 2-3: Hent elevbilete ved å rendere sidene
+    const alleBilete = [];
+
+    for (let pageNum = 2; pageNum <= Math.min(pdf.numPages, 3); pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({scale: 2.0}); // Høgare oppløysing
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({
+            canvasContext: context,
+            viewport: viewport
+        }).promise;
+
+        // Klipper ut bileta basert på layout
+        // Side 2-3 har 7 bilete per rad, ca 120x120px kvar
+        const biletePerRad = 7;
+        const radHøgde = viewport.height / 4.5; // Ca 4 rader per side
+        const bileteBreidd = viewport.width / biletePerRad;
+        const bileteHøgde = radHøgde * 0.6; // Bilete tek ca 60% av radhøgda
+
+        for (let rad = 0; rad < 4; rad++) {
+            for (let kol = 0; kol < biletePerRad; kol++) {
+                const x = kol * bileteBreidd + bileteBreidd * 0.1;
+                const y = rad * radHøgde + radHøgde * 0.15;
+
+                // Klipper ut biletet
+                const bileteCanvas = document.createElement('canvas');
+                bileteCanvas.width = bileteBreidd * 0.8;
+                bileteCanvas.height = bileteHøgde;
+                const bileteCtx = bileteCanvas.getContext('2d');
+
+                bileteCtx.drawImage(
+                    canvas,
+                    x, y, bileteBreidd * 0.8, bileteHøgde,
+                    0, 0, bileteBreidd * 0.8, bileteHøgde
+                );
+
+                // Konverter til base64
+                const bileteData = bileteCanvas.toDataURL('image/jpeg', 0.8);
+                alleBilete.push(bileteData);
+            }
+        }
+    }
+
+    console.log(`Fann ${alleBilete.length} bilete frå side 2-3`);
+
+    // Matcher bilete med elevar
+    elevar.forEach((elev, index) => {
+        if (index < alleBilete.length) {
+            elev.bilete = alleBilete[index];
+        }
+    });
+
+    return elevar;
+}
+
+/**
+ * Vis resultat frå Visma PDF-parsing
+ */
+function visVismaPDFResultat(modal, elevar) {
+    const resultatDiv = modal.querySelector('#visma-pdf-resultat');
+    resultatDiv.style.display = 'block';
+
+    let html = `
+        <h3>Funne ${elevar.length} elevar</h3>
+        <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 6px;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead style="position: sticky; top: 0; background: var(--dark); color: white;">
+                    <tr>
+                        <th style="padding: 0.75rem; text-align: left;">Bilete</th>
+                        <th style="padding: 0.75rem; text-align: left;">Fornamn</th>
+                        <th style="padding: 0.75rem; text-align: left;">Etternamn</th>
+                        <th style="padding: 0.75rem; text-align: left;">Faggruppe</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    elevar.forEach((elev, index) => {
+        html += `
+            <tr style="border-bottom: 1px solid #ddd;">
+                <td style="padding: 0.5rem;">
+                    ${elev.bilete ?
+                        `<img src="${elev.bilete}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 4px;" alt="${elev.fornamn}">` :
+                        '👤'
+                    }
+                </td>
+                <td style="padding: 0.75rem;">${elev.fornamn}</td>
+                <td style="padding: 0.75rem;">${elev.etternamn}</td>
+                <td style="padding: 0.75rem;">${elev.faggruppe}</td>
+            </tr>
+        `;
+    });
+
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    resultatDiv.innerHTML = html;
 }
 
 // ========================================
@@ -801,4 +1052,5 @@ window.visArkiv = visArkiv;
 window.oppdaterFagoversikt = oppdaterFagoversikt;
 window.visFagDetaljar = visFagDetaljar;
 window.visManuellElevDialog = visManuellElevDialog;
+window.visVismaPDFDialog = visVismaPDFDialog;
 // hentElevarIFag eksportert frå elevadministrasjon.js
