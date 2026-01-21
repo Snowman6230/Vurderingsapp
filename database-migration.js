@@ -35,6 +35,58 @@ async function migrerDatabase() {
 function migrerTilV4(db, transaction) {
     console.log('Migrerer til versjon 4: Legg til arkiv og faggruppe-støtte');
 
+    // 0. Opprett grunnleggjande object stores om dei ikkje finst (for heilt nye databaser)
+    if (!db.objectStoreNames.contains('elever')) {
+        const elevStore = db.createObjectStore('elever', {
+            keyPath: 'id',
+            autoIncrement: true
+        });
+        elevStore.createIndex('elev_id', 'elev_id', { unique: false });
+        elevStore.createIndex('fag', 'fag', { unique: false });
+        elevStore.createIndex('faggruppe', 'faggruppe', { unique: false });
+        elevStore.createIndex('fornavn', 'fornavn', { unique: false });
+        elevStore.createIndex('etternavn', 'etternavn', { unique: false });
+        console.log('✓ Elever object store oppretta');
+    }
+
+    if (!db.objectStoreNames.contains('vurderinger')) {
+        const vurdStore = db.createObjectStore('vurderinger', {
+            keyPath: 'id',
+            autoIncrement: true
+        });
+        vurdStore.createIndex('elev_id', 'elev_id', { unique: false });
+        vurdStore.createIndex('fag', 'fag', { unique: false });
+        vurdStore.createIndex('faggruppe', 'faggruppe', { unique: false });
+        vurdStore.createIndex('dato', 'dato', { unique: false });
+        vurdStore.createIndex('skoleaar', 'skoleaar', { unique: false });
+        console.log('✓ Vurderinger object store oppretta');
+    }
+
+    if (!db.objectStoreNames.contains('innstillinger')) {
+        db.createObjectStore('innstillinger', { keyPath: 'key' });
+        console.log('✓ Innstillinger object store oppretta');
+    }
+
+    if (!db.objectStoreNames.contains('sluttvurderingar')) {
+        const sluttvurdStore = db.createObjectStore('sluttvurderingar', {
+            keyPath: 'id',
+            autoIncrement: true
+        });
+        sluttvurdStore.createIndex('elev_id', 'elev_id', { unique: false });
+        sluttvurdStore.createIndex('fag', 'fag', { unique: false });
+        sluttvurdStore.createIndex('skoleaar', 'skoleaar', { unique: false });
+        console.log('✓ Sluttvurderingar object store oppretta');
+    }
+
+    if (!db.objectStoreNames.contains('laereplaner')) {
+        const laeStore = db.createObjectStore('laereplaner', {
+            keyPath: 'id',
+            autoIncrement: true
+        });
+        laeStore.createIndex('fag', 'fag', { unique: false });
+        console.log('✓ Laereplaner object store oppretta');
+    }
+
     // 1. Legg til arkiv object store
     if (!db.objectStoreNames.contains('arkiv')) {
         const arkivStore = db.createObjectStore('arkiv', {
