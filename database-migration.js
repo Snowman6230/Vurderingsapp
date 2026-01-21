@@ -2,7 +2,6 @@
 // Migrerer frå v3 (klasse) til v4 (faggruppe + arkiv)
 // © Alpindata
 
-const DB_NAME = 'VurderingsappDB';
 const NEW_DB_VERSION = 4;
 
 /**
@@ -13,7 +12,7 @@ const NEW_DB_VERSION = 4;
  */
 async function migrerDatabase() {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME, NEW_DB_VERSION);
+        const request = indexedDB.open('VurderingsappDB', NEW_DB_VERSION);
 
         request.onerror = () => reject(request.error);
         request.onsuccess = () => resolve(request.result);

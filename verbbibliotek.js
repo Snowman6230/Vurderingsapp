@@ -2,8 +2,6 @@
 // Håndterer standard Udir-verb, læreplanverb og eigendefinerte verb
 // © Alpindata
 
-const DB_NAME = 'VurderingsappDB';
-
 // ========================================
 // STANDARD UDIR-VERB (LK20)
 // ========================================
@@ -562,7 +560,7 @@ function visLastOppVerblisteDialog(fagId) {
 
 async function openDatabase() {
     return new Promise((resolve, reject) => {
-        const request = indexedDB.open(DB_NAME);
+        const request = indexedDB.open('VurderingsappDB');
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
     });

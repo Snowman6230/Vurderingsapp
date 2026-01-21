@@ -4656,7 +4656,6 @@ function forslaFerdigheter(kompetansemaalTekst) {
 
 // ============ INITIALISERING ============
 
-// Initialiser v3-funksjoner når DOM er klar
-if (document.readyState === 'loading') {
-    
+// App initialisert via DOMContentLoaded i andre modular
+console.log('Vurderingsapp v3 - Hovudmodul lasta');
 

@@ -752,3 +752,4 @@ window.leggTilElevManuelt = leggTilElevManuelt;
 window.søkElevEtterNamn = søkElevEtterNamn;
 window.lastOppElevbilete = lastOppElevbilete;
 window.visLastOppBileteDialog = visLastOppBileteDialog;
+window.hentElevarIFag = hentElevarIFag;
