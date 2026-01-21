@@ -436,6 +436,18 @@ async function visFagDetaljar(fagNamn) {
         return;
     }
 
+    // Hent fag-data for å sjå om læreplan er lasta
+    const db = await openDatabaseEnhancements();
+    const fagData = await new Promise((resolve, reject) => {
+        const transaction = db.transaction(['fag'], 'readonly');
+        const fagStore = transaction.objectStore('fag');
+        const request = fagStore.get(fagId);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+
+    const harLæreplan = fagData && fagData.læreplanKopla;
+
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.display = 'block';
@@ -456,9 +468,17 @@ async function visFagDetaljar(fagNamn) {
             <div style="margin: 1.5rem 0;">
                 <h3>Læreplan og verb</h3>
                 <p class="hjelpetekst">Last opp læreplan (DOCX) for å aktivere faget og ekstrahere verb automatisk.</p>
+                ${harLæreplan ? `
+                    <div style="background: #e8f5e9; padding: 1rem; border-radius: 6px; margin-bottom: 0.75rem;">
+                        <p style="margin: 0; color: #2e7d32; font-weight: 500;">
+                            ✓ Læreplan lasta opp: ${fagData.verbFraaLæreplan?.length || 0} verb ekstrabert
+                        </p>
+                    </div>
+                ` : ''}
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem;">
-                    <button id="last-opp-læreplan-btn" class="btn-success">📄 Last opp læreplan</button>
+                    <button id="last-opp-læreplan-btn" class="btn-success">📄 ${harLæreplan ? 'Erstatt' : 'Last opp'} læreplan</button>
                     <button id="vis-verbbibliotek-btn" class="btn-secondary">📖 Verbbibliotek</button>
+                    ${harLæreplan ? `<button id="fjern-læreplan-btn" class="btn-danger">🗑️ Fjern læreplan</button>` : ''}
                 </div>
                 <input type="file" id="læreplan-fil-input" accept=".docx" style="display: none;">
             </div>
@@ -492,7 +512,8 @@ async function visFagDetaljar(fagNamn) {
             const resultat = await lastOppLæreplan(fagId, file);
             showConfirmation(`Læreplan analysert! Fann ${resultat.verbtal} verb. Faget er no aktivt.`, 'success');
 
-            // Oppdater fagoversikt
+            // Lukk modal og oppdater fagoversikt
+            document.body.removeChild(modal);
             await oppdaterFagoversikt();
 
         } catch (error) {
@@ -500,6 +521,29 @@ async function visFagDetaljar(fagNamn) {
             console.error(error);
         }
     });
+
+    // Fjern læreplan
+    if (harLæreplan) {
+        const fjernBtn = modal.querySelector('#fjern-læreplan-btn');
+        fjernBtn.addEventListener('click', async () => {
+            if (!confirm(`Er du sikker på at du vil fjerne læreplanen frå ${fagNamn}?\n\nDette vil slette alle verb og deaktivere faget.`)) {
+                return;
+            }
+
+            try {
+                await fjernLæreplanFråFag(fagId);
+                showConfirmation(`Læreplan fjerna frå ${fagNamn}`, 'success');
+
+                // Lukk modal og oppdater fagoversikt
+                document.body.removeChild(modal);
+                await oppdaterFagoversikt();
+
+            } catch (error) {
+                showConfirmation('Feil ved fjerning av læreplan: ' + error.message, 'error');
+                console.error(error);
+            }
+        });
+    }
 
     // Vis verbbibliotek
     modal.querySelector('#vis-verbbibliotek-btn').addEventListener('click', () => {
@@ -618,6 +662,43 @@ async function openDatabaseEnhancements() {
     return new Promise((resolve, reject) => {
         const request = indexedDB.open('VurderingsappDB');
         request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+    });
+}
+
+/**
+ * Fjern læreplan frå eit fag
+ */
+async function fjernLæreplanFråFag(fagId) {
+    const db = await openDatabaseEnhancements();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['fag'], 'readwrite');
+        const fagStore = transaction.objectStore('fag');
+        const request = fagStore.get(fagId);
+
+        request.onsuccess = () => {
+            const fag = request.result;
+            if (!fag) {
+                reject(new Error('Fag ikkje funne'));
+                return;
+            }
+
+            // Fjern læreplan-data
+            fag.læreplanKopla = false;
+            fag.aktiv = false;
+            delete fag.verbFraaLæreplan;
+            delete fag.læreplanTekst;
+            delete fag.læreplanOppdatert;
+
+            const updateRequest = fagStore.put(fag);
+            updateRequest.onsuccess = () => {
+                console.log(`✓ Læreplan fjerna frå fag ID ${fagId}`);
+                resolve();
+            };
+            updateRequest.onerror = () => reject(updateRequest.error);
+        };
+
         request.onerror = () => reject(request.error);
     });
 }
