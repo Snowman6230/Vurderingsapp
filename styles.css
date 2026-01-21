@@ -18,6 +18,34 @@
     --low: #e74c3c;
 }
 
+/* Fargetema - Blå (standard) */
+body.tema-blaa {
+    --secondary: #3498db;
+    --success: #27ae60;
+    --warning: #f39c12;
+}
+
+/* Fargetema - Grøn */
+body.tema-gronn {
+    --secondary: #27ae60;
+    --success: #2ecc71;
+    --warning: #16a085;
+}
+
+/* Fargetema - Lilla */
+body.tema-lilla {
+    --secondary: #9b59b6;
+    --success: #8e44ad;
+    --warning: #c39bd3;
+}
+
+/* Fargetema - Oransje */
+body.tema-oransje {
+    --secondary: #e67e22;
+    --success: #d35400;
+    --warning: #f39c12;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     background: var(--light);
@@ -163,6 +191,72 @@ nav {
 
 .elev-item.neste {
     border: 2px dashed var(--secondary);
+}
+
+.elev-item-content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.elev-bilete {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    border: 2px solid #ddd;
+}
+
+.elev-bilete.placeholder {
+    background: #ecf0f1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: #95a5a6;
+}
+
+.elev-bilete.pdf-ikon {
+    background: #e74c3c;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+}
+
+.elev-namn {
+    flex: 1;
+    font-weight: 500;
+}
+
+.elev-item.valgt .elev-namn {
+    color: white;
+}
+
+.last-opp-bilete-btn {
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.elev-item:hover .last-opp-bilete-btn {
+    opacity: 1;
+}
+
+.btn-mini {
+    background: var(--secondary);
+    color: white;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+}
+
+.btn-mini:hover {
+    background: var(--dark);
 }
 
 /* Vurderingsskjema */
@@ -1268,6 +1362,15 @@ body.dark-mode .historikk-item:hover {
     background: #3d5770;
 }
 
+body.dark-mode .elev-bilete {
+    border-color: #4a5f7f;
+}
+
+body.dark-mode .elev-bilete.placeholder {
+    background: #34495e;
+    color: #7f8c8d;
+}
+
 body.dark-mode .fag-header {
     background: #34495e;
 }
@@ -1567,4 +1670,47 @@ body.dark-mode .support-tab.active {
 
 body.dark-mode .support-tabs {
     border-bottom-color: #34495e;
+}
+
+/* ========================================
+   VERBBIBLIOTEK TABS
+   ======================================== */
+
+.verb-tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #7f8c8d;
+}
+
+.verb-tab:hover {
+    color: var(--secondary);
+    background: rgba(52, 152, 219, 0.05);
+}
+
+.verb-tab.active {
+    color: var(--secondary);
+    border-bottom-color: var(--secondary);
+    font-weight: 600;
+}
+
+.verb-tab-content {
+    margin-top: 1.5rem;
+}
+
+body.dark-mode .verb-tab {
+    color: #95a5a6;
+}
+
+body.dark-mode .verb-tab:hover {
+    color: #3498db;
+    background: rgba(52, 152, 219, 0.1);
+}
+
+body.dark-mode .verb-tab.active {
+    color: #3498db;
 }

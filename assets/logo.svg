@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="60" viewBox="0 0 200 60">
+  <!-- Mountain symbol for "Alpin" -->
+  <path d="M 20 40 L 30 20 L 40 40 Z" fill="#2c3e50" stroke="#3498db" stroke-width="2"/>
+  <path d="M 35 30 L 45 10 L 55 30 Z" fill="#3498db" stroke="#2c3e50" stroke-width="2"/>
+
+  <!-- Text "Alpindata" -->
+  <text x="65" y="35" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#2c3e50">
+    Alpindata
+  </text>
+</svg>

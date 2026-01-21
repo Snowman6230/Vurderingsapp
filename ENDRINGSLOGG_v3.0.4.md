@@ -9,16 +9,17 @@ Denne oppdateringa fiksar problem med elevdata der klassenamn har blitt importer
 ## ✅ NYE FIKSAR I v3.0.4
 
 ### 1. ✅ Automatisk fiksing av elevdata med klassenamn i fornamn
-**Problem:** Når elevdata blei importert frå Visma PDF, blei klassenamn (t.d. 1ST1) inkludert i fornamnfeltet i staden for å bli lagra separat
+**Problem:** Når elevdata blei importert frå Visma PDF, blei klassenamn (t.d. 1ST1) inkludert i fornamnfeltet i staden for å bli lagra separat i faggruppe-feltet.
+
 **Løysing:**
-- Ny funksjon `fiksElevdata()` som automatisk ekstrahere klassenamn frå fornamn
+- Ny funksjon `migrerEksisterandeData()` som automatisk ekstrahere klassenamn frå fornamn
 - Gjenkjenner klassenamn-mønster: siffer + 1-4 bokstavar + valfritt siffer (t.d. 1ST1, 2NA3, 3KR1)
-- Lagrar klassenamnet i klasse-feltet og fjernar det frå fornamn
+- Lagrar klassenamnet i faggruppe-feltet og fjernar det frå fornamn
 - Kjører automatisk når appen startar
 
 **Døme:**
-- **Før:** fornamn: "1ST1 Mohammad Refai", klasse: undefined, faggruppe: undefined
-- **Etter:** fornamn: "Mohammad Refai", klasse: "1ST1", faggruppe: "1ST1"
+- **Før:** fornamn: "1ST1 Mohammad Refai", faggruppe: undefined
+- **Etter:** fornamn: "Mohammad Refai", faggruppe: "1ST1"
 
 ---
 
@@ -31,44 +32,44 @@ Denne oppdateringa fiksar problem med elevdata der klassenamn har blitt importer
 
 ---
 
-### 3. ✅ Støtte for faggruppe-felt
+### 3. ✅ Forbetra migrering frå klasse til faggruppe
 **Løysing:**
-- Lagt til støtte for faggruppe i elevdata
+- Migreringslogikk som automatisk overfører data frå klasse til faggruppe
+- Sikrar at alle elevar har faggruppe-felt (tom string om ikkje spesifisert)
+- Sikrar at alle elevar har fag-felt (tom string om ikkje spesifisert)
 - CSV-import støttar no faggruppe som valfritt felt
-- Alle elevar får faggruppe-felt (tom string om ikkje spesifisert)
-- Kan brukast for å gruppere elevar innanfor same fag
 
 **CSV-format (oppdatert):**
 ```csv
 elev_id,fornavn,etternavn,klasse,fag,faggruppe
-elev_001,Mohammad Refai,Arabi,1ST1,Geografi,Gruppe A
-elev_002,Anna,Hansen,1ST1,Geografi,Gruppe B
+elev_001,Mohammad Refai,Arabi,1ST1,Geografi,1ST1
+elev_002,Anna,Hansen,1ST1,Geografi,1ST1
 ```
 
 ---
 
 ### 4. ✅ Forbetra feilsøking
 **Løysing:**
-- Utvidde konsolloggar i `fiksElevdata()` for enklare feilsøking
+- Utvidde konsolloggar i `migrerEksisterandeData()` for enklare feilsøking
 - Viser statistikk om:
   - Kor mange elevar som blei oppdatert
   - Kor mange elevar som manglar faggruppe
-  - Kor mange elevar som har klasse men ikkje faggruppe
+  - Detaljerte loggar for kvar elevoppdatering
 
 ---
 
 ## 📋 TEKNISKE DETALJAR
 
 ### Nye funksjoner i app.js:
-- `fiksElevdata()` - Automatisk rydding av elevdata (linje ~1985)
+- `migrerEksisterandeData()` - Automatisk rydding av elevdata (linje ~605)
   - Ekstrahere klassenamn frå fornamn
   - Migrer klasse til faggruppe
   - Sikrar at alle elevar har fag og faggruppe-felt
   - Viser detaljerte konsolloggar for feilsøking
 
 ### Oppdaterte funksjoner:
-- `initApp()` - Kallar `fiksElevdata()` ved oppstart
-- `importerEleverCSV()` - Støttar faggruppe og fag som valfrie felt
+- `initApp()` - Kallar `migrerEksisterandeData()` ved oppstart
+- `importerEleverCSV()` - Støttar faggruppe og fag som valfrie felt, krev ikkje faggruppe for import
 
 ### Nye UI-element:
 - Knapp i Innstillingar: "🔧 Fiks elevdata no"
@@ -86,6 +87,7 @@ elev_002,Anna,Hansen,1ST1,Geografi,Gruppe B
 - [x] Faggruppe-felt blir lagt til for alle elevar
 - [x] CSV-import støttar faggruppe-felt
 - [x] Konsolloggar viser riktig statistikk
+- [x] Migrering frå klasse til faggruppe fungerer
 
 ---
 
@@ -93,18 +95,19 @@ elev_002,Anna,Hansen,1ST1,Geografi,Gruppe B
 
 **Problemet er løyst!** 🎉
 
-- ✅ Elevar får no riktig klassenamn lagra i klasse-feltet
+- ✅ Elevar får no riktig klassenamn lagra i faggruppe-feltet
 - ✅ Fornamn inneheld berre elevens reelle fornamn
 - ✅ Faggruppe-støtte er på plass
 - ✅ Automatisk fiksing ved oppstart
 - ✅ Manuell fiksing tilgjengeleg i Innstillingar
+- ✅ Migrering frå klasse til faggruppe
 
 ---
 
 ## 📦 KORLEIS OPPDATERE
 
 1. **Erstatt filene** med dei nye versjonane:
-   - **app.js** (oppdatert med fiksElevdata())
+   - **app.js** (oppdatert med migrerEksisterandeData())
    - **index.html** (oppdatert med ny knapp)
 
 2. **Tøm nettlesarcache** (Ctrl+Shift+Delete / Cmd+Shift+Delete)
@@ -122,6 +125,7 @@ elev_002,Anna,Hansen,1ST1,Geografi,Gruppe B
 - Sjekk nettlesarkonsollen (F12) for å sjå detaljert statistikk
 - Bruk knappen "Fiks elevdata no" om du importerer nye elevar seinare
 - CSV-filer kan no inkludere faggruppe-kolonne for betre organisering
+- Faggruppe blir automatisk sett til klassenamn om det finst
 
 ---
 

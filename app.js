@@ -3,7 +3,7 @@
 
 // Database konfigurasjon
 const DB_NAME = 'VurderingsappDB';
-const DB_VERSION = 3; // Oppdatert for læreplan-funksjonalitet
+const DB_VERSION = 4; // Oppdatert til v4 (faggruppe + arkiv)
 let db;
 
 
@@ -132,7 +132,7 @@ function oppdaterTekstforslag() {
 
 // Globale variabler
 let valgtElev = null;
-let sisteValgteKlasse = '';
+let sisteValgteFaggruppe = '';
 let sisteValgteFag = '';
 let gjeldendeSkoleaar = '';
 let gjeldendeSemester = '';
@@ -418,6 +418,117 @@ initSlettingUI();
     }
 });
 
+// Hent fag som array av namn (til bruk i dropdowns osv)
+async function hentFagNamn() {
+    if (!db) await initDB();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['fag'], 'readonly');
+        const fagStore = transaction.objectStore('fag');
+        const request = fagStore.getAll();
+
+        request.onsuccess = () => {
+            const fagObjekter = request.result || [];
+            const fagNamn = fagObjekter.map(f => f.namn);
+
+            // Fallback til standardFag om ingen fag finst
+            if (fagNamn.length === 0) {
+                resolve(standardFag);
+            } else {
+                resolve(fagNamn);
+            }
+        };
+
+        request.onerror = () => {
+            console.error('Feil ved henting av fagnamn:', request.error);
+            resolve(standardFag);
+        };
+    });
+}
+
+// Migrer fagliste frå innstillingar til fag object store
+async function migrerFaglisteTilFagStore() {
+    if (!db) return;
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['fag', 'innstillinger'], 'readwrite');
+        const fagStore = transaction.objectStore('fag');
+        const innstillingarStore = transaction.objectStore('innstillinger');
+
+        // Sjekk om fag object store allereie har data
+        const countRequest = fagStore.count();
+
+        countRequest.onsuccess = () => {
+            if (countRequest.result > 0) {
+                // Fag finst allereie, ingen migrasjon nødvendig
+                console.log('✓ Fag object store har allereie data, hoppar over migrasjon');
+                resolve();
+                return;
+            }
+
+            // Hent fagliste frå innstillingar
+            const innstillingarRequest = innstillingarStore.get('fagliste');
+
+            innstillingarRequest.onsuccess = () => {
+                let fagliste = [];
+
+                if (innstillingarRequest.result && innstillingarRequest.result.value) {
+                    fagliste = innstillingarRequest.result.value;
+                    console.log('Migrerer fagliste frå innstillingar:', fagliste);
+                } else {
+                    // Bruk standardFag om ingen fagliste finst
+                    fagliste = standardFag;
+                    console.log('Ingen fagliste funne, brukar standardFag:', fagliste);
+                }
+
+                // Legg til kvar fag i fag object store
+                let migrerteTal = 0;
+                fagliste.forEach((fagNamn, index) => {
+                    const fagObjekt = {
+                        namn: fagNamn,
+                        aktiv: true,
+                        læreplanKopla: false
+                    };
+
+                    const addRequest = fagStore.add(fagObjekt);
+
+                    addRequest.onsuccess = () => {
+                        migrerteTal++;
+                        if (migrerteTal === fagliste.length) {
+                            console.log(`✓ Migrert ${migrerteTal} fag til fag object store`);
+                            resolve();
+                        }
+                    };
+
+                    addRequest.onerror = () => {
+                        console.error(`Feil ved migrasjon av fag "${fagNamn}":`, addRequest.error);
+                        migrerteTal++;
+                        if (migrerteTal === fagliste.length) {
+                            resolve();
+                        }
+                    };
+                });
+
+                // Handsam tom fagliste
+                if (fagliste.length === 0) {
+                    console.log('✓ Ingen fag å migrere');
+                    resolve();
+                }
+            };
+
+            innstillingarRequest.onerror = () => {
+                console.error('Feil ved henting av fagliste:', innstillingarRequest.error);
+                resolve(); // Fortsett sjølv om migrasjon feilar
+            };
+        };
+
+        countRequest.onerror = () => {
+            console.error('Feil ved sjekk av fag object store:', countRequest.error);
+            resolve(); // Fortsett sjølv om migrasjon feilar
+        };
+    });
+}
+
 // Initialiser IndexedDB
 async function initDB() {
     return new Promise((resolve, reject) => {
@@ -429,10 +540,14 @@ async function initDB() {
             reject(request.error);
         };
         
-        request.onsuccess = () => {
+        request.onsuccess = async () => {
             db = request.result;
             console.log(`✓ Database opna: ${db.name}, versjon: ${db.version}`);
             console.log('Object stores:', Array.from(db.objectStoreNames));
+
+            // Migrer fagliste frå innstillingar til fag object store
+            await migrerFaglisteTilFagStore();
+
             resolve();
         };
         
@@ -487,14 +602,104 @@ async function initDB() {
     });
 }
 
+// Funksjon for å fikse elevdata - ekstrahere klassenamn/faggruppe frå fornamn
+async function migrerEksisterandeData() {
+    console.log('🔧 Startar migrering av elevdata...');
+
+    const transaction = db.transaction(['elever'], 'readwrite');
+    const store = transaction.objectStore('elever');
+    const request = store.getAll();
+
+    return new Promise((resolve) => {
+        request.onsuccess = async () => {
+            const elever = request.result;
+            console.log(`📊 ${elever.length} elevar i database`);
+
+            if (elever.length > 0) {
+                console.log('📋 Første elev:', elever[0]);
+                console.log('fornamn:', elever[0].fornamn);
+                console.log('etternamn:', elever[0].etternamn);
+                console.log('fag:', elever[0].fag);
+                console.log('klasse:', elever[0].klasse);
+                console.log('faggruppe:', elever[0].faggruppe);
+            }
+
+            let oppdatert = 0;
+            let manglendeFaggruppe = 0;
+
+            for (const elev of elever) {
+                let endret = false;
+
+                // Sjekk om fornamn startar med klassenamn-mønster (t.d. 1ST1, 2NA3, 3KR1)
+                // Mønster: siffer + 1-4 bokstavar + valfritt siffer + mellomrom
+                const klassenavnMatch = elev.fornamn?.match(/^(\d[A-ZÆØÅ]{1,4}\d?)\s+(.+)$/);
+
+                if (klassenavnMatch && (!elev.faggruppe || elev.faggruppe === '')) {
+                    const klassenamn = klassenavnMatch[1];
+                    const reeltFornamn = klassenavnMatch[2];
+
+                    elev.faggruppe = klassenamn;
+                    elev.fornamn = reeltFornamn;
+
+                    // Set også klasse-felt for bakoverkompatibilitet
+                    if (!elev.klasse) {
+                        elev.klasse = klassenamn;
+                    }
+
+                    endret = true;
+                    console.log(`✅ Ekstraherte faggruppe "${klassenamn}" frå fornamn: ${elev.fornamn}`);
+                }
+
+                // Migrer klasse til faggruppe om nødvendig
+                if (elev.klasse && (!elev.faggruppe || elev.faggruppe === '')) {
+                    elev.faggruppe = elev.klasse;
+                    endret = true;
+                    console.log(`✅ Migrerte klasse "${elev.klasse}" til faggruppe for ${elev.fornamn}`);
+                }
+
+                // Sjekk om faggruppe manglar
+                if (!elev.faggruppe || elev.faggruppe === '') {
+                    manglendeFaggruppe++;
+                    // Set faggruppe til tom string om det ikkje finst
+                    if (elev.faggruppe === undefined) {
+                        elev.faggruppe = '';
+                        endret = true;
+                    }
+                }
+
+                // Sjekk om fag manglar
+                if (elev.fag === undefined) {
+                    elev.fag = '';
+                    endret = true;
+                }
+
+                // Lagre endringane om noko blei endra
+                if (endret) {
+                    await store.put(elev);
+                    oppdatert++;
+                }
+            }
+
+            console.log(`✅ ${oppdatert} elevar oppdatert`);
+            console.log(`⚠️ ${manglendeFaggruppe} elevar manglar faggruppe`);
+
+            if (oppdatert > 0) {
+                visToast(`${oppdatert} elevar oppdatert med faggruppe!`, 'success');
+            }
+
+            resolve(oppdatert);
+        };
+    });
+}
+
 // Initialiser app komponenter
 async function initApp() {
     await lastInnstillinger();
+
+    // Migrer eksisterande data frå klasse til faggruppe
+    await migrerEksisterandeData();
+
     await oppdaterSkoleaarOgSemester();
-
-    // Fiks elevdata om nødvendig (ekstrahere klassenamn frå fornamn)
-    await fiksElevdata();
-
     await lastKlasser();
     await lastElever();
     visHurtigmodus();
@@ -599,18 +804,18 @@ function setupEventListeners() {
     });
     
     // Hurtigmodus
-    const hurtigKlasse = document.getElementById('hurtig-klasse');
-    if (hurtigKlasse) {
-        hurtigKlasse.addEventListener('change', (e) => {
-            sisteValgteKlasse = e.target.value;
+    const hurtigFaggruppe = document.getElementById('hurtig-faggruppe');
+    if (hurtigFaggruppe) {
+        hurtigFaggruppe.addEventListener('change', (e) => {
+            sisteValgteFaggruppe = e.target.value;
             visEleverIHurtigmodus(e.target.value);
         });
     }
 
     // Elevoversikt
-    const elevoversiktKlasse = document.getElementById('elevoversikt-klasse');
-    if (elevoversiktKlasse) {
-        elevoversiktKlasse.addEventListener('change', async (e) => {
+    const elevoversiktFaggruppe = document.getElementById('elevoversikt-faggruppe');
+    if (elevoversiktFaggruppe) {
+        elevoversiktFaggruppe.addEventListener('change', async (e) => {
             await oppdaterElevSelect(e.target.value);
         });
     }
@@ -625,12 +830,12 @@ function setupEventListeners() {
     }
 
     // Klasseoversikt
-    const oversiktKlasse = document.getElementById('oversikt-klasse');
+    const oversiktFaggruppe = document.getElementById('oversikt-faggruppe');
     const oversiktFag = document.getElementById('oversikt-fag');
     const oversiktSkoleaar = document.getElementById('oversikt-skoleaar');
     const oversiktSemester = document.getElementById('oversikt-semester');
     const oversiktSortering = document.getElementById('oversikt-sortering');
-    if (oversiktKlasse) oversiktKlasse.addEventListener('change', oppdaterKlasseoversikt);
+    if (oversiktFaggruppe) oversiktFaggruppe.addEventListener('change', oppdaterKlasseoversikt);
     if (oversiktFag) oversiktFag.addEventListener('change', oppdaterKlasseoversikt);
     if (oversiktSkoleaar) oversiktSkoleaar.addEventListener('change', oppdaterKlasseoversikt);
     if (oversiktSemester) oversiktSemester.addEventListener('change', oppdaterKlasseoversikt);
@@ -638,14 +843,14 @@ function setupEventListeners() {
 
     // Historikk
     const historikkSok = document.getElementById('historikk-sok');
-    const historikkKlasse = document.getElementById('historikk-klasse');
+    const historikkFaggruppe = document.getElementById('historikk-faggruppe');
     const historikkFag = document.getElementById('historikk-fag');
     const historikkSkoleaar = document.getElementById('historikk-skoleaar');
     const historikkSemester = document.getElementById('historikk-semester');
     const historikkFra = document.getElementById('historikk-fra');
     const historikkTil = document.getElementById('historikk-til');
     if (historikkSok) historikkSok.addEventListener('input', oppdaterHistorikk);
-    if (historikkKlasse) historikkKlasse.addEventListener('change', oppdaterHistorikk);
+    if (historikkFaggruppe) historikkFaggruppe.addEventListener('change', oppdaterHistorikk);
     if (historikkFag) historikkFag.addEventListener('change', oppdaterHistorikk);
     if (historikkSkoleaar) historikkSkoleaar.addEventListener('change', oppdaterHistorikk);
     if (historikkSemester) historikkSemester.addEventListener('change', oppdaterHistorikk);
@@ -682,17 +887,6 @@ function setupEventListeners() {
     if (eksportAltV2) eksportAltV2.addEventListener('click', eksporterAlt);
     if (eksportAltV3) eksportAltV3.addEventListener('click', eksporterAlt);
 
-    // Fiks elevdata knapp
-    const fiksElevdataBtn = document.getElementById('fiks-elevdata-btn');
-    if (fiksElevdataBtn) fiksElevdataBtn.addEventListener('click', async () => {
-        const bekreft = confirm('Dette vil ekstrahere klassenamn frå fornamn for alle elevar som har klassenamn i fornamn (t.d. "1ST1 Mohammad Refai"). Vil du fortsetje?');
-        if (bekreft) {
-            await fiksElevdata();
-            await lastKlasser();
-            await lastElever();
-        }
-    });
-
     const eksportCsvV2 = document.getElementById('eksporter-csv');
     if (eksportCsvV2) eksportCsvV2.addEventListener('click', eksporterVurderingerCSV);
 
@@ -705,6 +899,17 @@ function setupEventListeners() {
     if (importerBtn && importerBackupV2) {
         importerBtn.addEventListener('click', () => importerBackupV2.click());
     }
+
+    // Fiks elevdata knapp
+    const fiksElevdataBtn = document.getElementById('fiks-elevdata-btn');
+    if (fiksElevdataBtn) fiksElevdataBtn.addEventListener('click', async () => {
+        const bekreft = confirm('Dette vil ekstrahere klassenamn/faggruppe frå fornamn for alle elevar som har klassenamn i fornamn (t.d. "1ST1 Mohammad Refai"). Vil du fortsetje?');
+        if (bekreft) {
+            await migrerEksisterandeData();
+            await lastKlasser();
+            await lastElever();
+        }
+    });
 
     // Modaler
     const closeBtn = document.querySelector('.close');
@@ -760,8 +965,8 @@ function visView(view) {
         case 'elevoversikt':
             visElevoversikt();
             break;
-        case 'klasseoversikt':
-            oppdaterKlasseoversikt();
+        case 'fagoversikt':
+            oppdaterFagoversikt();
             break;
 		case 'grafikk':
 			try { oppdaterGrafikk(); } catch (e) {}
@@ -780,9 +985,9 @@ function visView(view) {
 
 // Hurtigmodus funksjoner
 async function visHurtigmodus() {
-    if (sisteValgteKlasse) {
-        document.getElementById('hurtig-klasse').value = sisteValgteKlasse;
-        visEleverIHurtigmodus(sisteValgteKlasse);
+    if (sisteValgteFaggruppe) {
+        document.getElementById('hurtig-faggruppe').value = sisteValgteFaggruppe;
+        visEleverIHurtigmodus(sisteValgteFaggruppe);
     }
 }
 
@@ -805,7 +1010,30 @@ async function visEleverIHurtigmodus(klasse) {
     elever.forEach((elev, index) => {
         const elevDiv = document.createElement('div');
         elevDiv.className = 'elev-item';
-        elevDiv.textContent = `${elev.fornavn} ${elev.etternavn}`;
+
+        // Bygg HTML med bilete om det finst
+        let elevHTML = '<div class="elev-item-content">';
+
+        // Elevbilete
+        if (elev.bilete) {
+            if (elev.bileteType === 'application/pdf') {
+                elevHTML += '<div class="elev-bilete pdf-ikon">📄</div>';
+            } else {
+                elevHTML += `<img src="${elev.bilete}" class="elev-bilete" alt="${elev.fornavn} ${elev.etternavn}">`;
+            }
+        } else {
+            elevHTML += '<div class="elev-bilete placeholder">👤</div>';
+        }
+
+        // Elevnamn
+        elevHTML += `<span class="elev-namn">${elev.fornavn} ${elev.etternavn}</span>`;
+
+        // Last opp bilete-knapp
+        elevHTML += `<button class="btn-mini last-opp-bilete-btn" onclick="event.stopPropagation(); visLastOppBileteDialog('${elev.elev_id}', '${elev.fornavn} ${elev.etternavn}')" title="Last opp bilete">📷</button>`;
+
+        elevHTML += '</div>';
+
+        elevDiv.innerHTML = elevHTML;
         elevDiv.onclick = () => velgElev(elev, index);
         elevListe.appendChild(elevDiv);
     });
@@ -826,12 +1054,11 @@ function velgElev(elev, index) {
 
 async function visVurderingsskjema() {
     const skjema = document.getElementById('hurtig-skjema');
-    const innstillinger = await hentInnstillinger();
-    const fagliste = innstillinger.fagliste || standardFag;
-    
+    const fagliste = await hentFagNamn();
+
     skjema.innerHTML = `
         <h4>${valgtElev.fornavn} ${valgtElev.etternavn}</h4>
-        
+
         <div class="skjema-gruppe">
             <label>Fag:</label>
             <select id="vurd-fag">
@@ -1117,7 +1344,7 @@ const verb_funn = finnVerbaItekst(kompetansemaal_tekst);
         fokus: (document.getElementById('fokus') ? document.getElementById('fokus').value : ''),
         vurdering_id: genererID(),
         elev_id: valgtElev.elev_id,
-        klasse: valgtElev.klasse,
+        faggruppe: valgtElev.faggruppe,
         fag: fag,
         skoleaar: skoleaar,
         semester: semester,
@@ -1216,9 +1443,9 @@ async function visElevDetaljer(elevId) {
     });
     
     const detaljerDiv = document.getElementById('elev-detaljer');
-    
+
     detaljerDiv.innerHTML = `
-        <h2>${elev.fornavn} ${elev.etternavn} - ${elev.klasse}</h2>
+        <h2>${elev.fornavn} ${elev.etternavn} - ${elev.faggruppe}</h2>
         
         <div class="fag-accordion">
             ${Object.keys(vurderingerPerFag).map(fag => {
@@ -1469,27 +1696,41 @@ function lukkOppsummeringModal() {
 }
 
 // Klasseoversikt funksjoner
-async function oppdaterKlasseoversikt() {
-    const klasse = document.getElementById('oversikt-klasse').value;
-    const fag = document.getElementById('oversikt-fag').value;
-    const skoleaar = document.getElementById('oversikt-skoleaar').value;
-    const semester = document.getElementById('oversikt-semester').value;
-    const sortering = document.getElementById('oversikt-sortering').value;
+// KOMMENTERT UT: Denne funksjonen kolliderte med oppdaterFagoversikt() i enhancements.js
+// og forårsaka null-referanse feil. Elementane den prøvde å lese finst ikkje i HTML.
+/*
+async function oppdaterElevoversikt() {
+    const klasseSel = document.getElementById('oversikt-faggruppe');
+    const fagSel = document.getElementById('oversikt-fag');
+    const skoleaarSel = document.getElementById('oversikt-skoleaar');
+    const semesterSel = document.getElementById('oversikt-semester');
+    const sorteringSel = document.getElementById('oversikt-sortering');
     const tabell = document.getElementById('oversikt-tabell');
-    
+
+    // Null-sjekk - returner om vi ikkje er i elevoversikt-view
+    if (!klasseSel || !fagSel || !tabell) {
+        return;
+    }
+
+    const klasse = klasseSel.value;
+    const fag = fagSel.value;
+    const skoleaar = skoleaarSel ? skoleaarSel.value : '';
+    const semester = semesterSel ? semesterSel.value : '';
+    const sortering = sorteringSel ? sorteringSel.value : 'etternavn';
+
     // Oppdater fagliste
     await oppdaterFagSelect();
-    
+
     if (!klasse || !fag) {
         tabell.innerHTML = '<p>Velg klasse og fag</p>';
         return;
     }
-    
+
     const elever = await hentEleverIKlasse(klasse);
     const alleVurderinger = await hentAlleVurderinger();
     const innstillinger = await hentInnstillinger();
     const varselDager = innstillinger.varselDager || 30;
-    
+
     // Filtrer vurderinger
     const vurderinger = alleVurderinger.filter(v => {
         if (v.fag !== fag) return false;
@@ -1497,21 +1738,21 @@ async function oppdaterKlasseoversikt() {
         if (semester && v.semester !== semester) return false;
         return true;
     });
-    
+
     // Bygg oversiktsdata
     const oversiktData = elever.map(elev => {
         const elevVurderinger = vurderinger.filter(v => v.elev_id === elev.elev_id);
         const sisteVurdering = elevVurderinger.sort((a, b) => new Date(b.dato) - new Date(a.dato))[0];
-        
+
         return {
             elev: elev,
             sisteVurdering: sisteVurdering,
-            dagerSiden: sisteVurdering ? 
-                Math.floor((new Date() - new Date(sisteVurdering.dato)) / (1000 * 60 * 60 * 24)) : 
+            dagerSiden: sisteVurdering ?
+                Math.floor((new Date() - new Date(sisteVurdering.dato)) / (1000 * 60 * 60 * 24)) :
                 999
         };
     });
-    
+
     // Sorter data
     oversiktData.sort((a, b) => {
         switch(sortering) {
@@ -1528,7 +1769,7 @@ async function oppdaterKlasseoversikt() {
                 return 0;
         }
     });
-    
+
     // Generer tabell
     tabell.innerHTML = `
         <table>
@@ -1538,25 +1779,25 @@ async function oppdaterKlasseoversikt() {
                     <th>Sist vurdert</th>
                     <th>Vurdering</th>
                     <th>Tema</th>
-                    <th>Handlinger</th>
+                    <th>Handlingar</th>
                 </tr>
             </thead>
             <tbody>
                 ${oversiktData.map(data => {
                     const manglerVurdering = data.dagerSiden > varselDager;
                     const klasse = manglerVurdering ? 'mangler-vurdering' : '';
-                    
+
                     return `
                         <tr class="${klasse}">
                             <td><strong>${data.elev.fornavn} ${data.elev.etternavn}</strong></td>
-                            <td>${data.sisteVurdering ? 
-                                `${formatDato(data.sisteVurdering.dato)} (${data.dagerSiden} dager siden)` : 
+                            <td>${data.sisteVurdering ?
+                                `${formatDato(data.sisteVurdering.dato)} (${data.dagerSiden} dager siden)` :
                                 'Aldri vurdert'
                             }</td>
-                            <td>${data.sisteVurdering ? 
+                            <td>${data.sisteVurdering ?
                                 `<span class="vurdering-badge ${data.sisteVurdering.hovedvurdering.toLowerCase()}">
                                     ${data.sisteVurdering.hovedvurdering}
-                                </span>` : 
+                                </span>` :
                                 '-'
                             }</td>
                             <td>${data.sisteVurdering?.tema || '-'}</td>
@@ -1572,13 +1813,13 @@ async function oppdaterKlasseoversikt() {
         </table>
     `;
 }
+*/
 
 async function oppdaterFagSelect() {
-    const innstillinger = await hentInnstillinger();
-    const fagliste = innstillinger.fagliste || standardFag;
+    const fagliste = await hentFagNamn();
     const fagSelect = document.getElementById('oversikt-fag');
     const currentFag = fagSelect.value;
-    
+
     fagSelect.innerHTML = '<option value="">-- Velg fag --</option>';
     fagliste.forEach(fag => {
         const option = document.createElement('option');
@@ -1586,7 +1827,7 @@ async function oppdaterFagSelect() {
         option.textContent = fag;
         fagSelect.appendChild(option);
     });
-    
+
     if (currentFag) {
         fagSelect.value = currentFag;
     }
@@ -1599,8 +1840,8 @@ function nyVurderingForElevFag(elevId, fag) {
     
     setTimeout(async () => {
         const elev = await hentElev(elevId);
-        document.getElementById('hurtig-klasse').value = elev.klasse;
-        await visEleverIHurtigmodus(elev.klasse);
+        document.getElementById('hurtig-faggruppe').value = elev.faggruppe;
+        await visEleverIHurtigmodus(elev.faggruppe);
         
         // Finn og klikk på eleven
         const elevItems = document.querySelectorAll('.elev-item');
@@ -1615,7 +1856,7 @@ function nyVurderingForElevFag(elevId, fag) {
 // Historikk funksjoner
 async function oppdaterHistorikk() {
     const sok = document.getElementById('historikk-sok').value.toLowerCase();
-    const klasseFilter = document.getElementById('historikk-klasse').value;
+    const klasseFilter = document.getElementById('historikk-faggruppe').value;
     const fagFilter = document.getElementById('historikk-fag').value;
     const skoleaarFilter = document.getElementById('historikk-skoleaar').value;
     const semesterFilter = document.getElementById('historikk-semester').value;
@@ -1639,7 +1880,7 @@ async function oppdaterHistorikk() {
         }
         
         // Andre filtre
-        if (klasseFilter && v.klasse !== klasseFilter) return false;
+        if (klasseFilter && v.faggruppe !== klasseFilter) return false;
         if (fagFilter && v.fag !== fagFilter) return false;
         if (skoleaarFilter && v.skoleaar !== skoleaarFilter) return false;
         if (semesterFilter && v.semester !== semesterFilter) return false;
@@ -1671,7 +1912,7 @@ async function oppdaterHistorikk() {
                     <span class="historikk-dato">${formatDato(v.dato)}</span>
                 </div>
                 <div class="historikk-detaljer">
-                    <span>Klasse: ${v.klasse}</span>
+                    <span>Faggruppe: ${v.faggruppe}</span>
                     <span>Fag: ${v.fag}</span>
                     <span>${v.skoleaar || ''} ${v.semester || ''}</span>
                     <span class="vurdering-badge ${v.hovedvurdering.toLowerCase()}">
@@ -1724,8 +1965,7 @@ async function oppdaterFilterlister() {
 async function redigerVurdering(vurderingId) {
     const vurdering = await hentVurdering(vurderingId);
     const elev = await hentElev(vurdering.elev_id);
-    const innstillinger = await hentInnstillinger();
-    const fagliste = innstillinger.fagliste || standardFag;
+    const fagliste = await hentFagNamn();
     
     const modal = document.getElementById('detalj-modal');
     const innhold = document.getElementById('detalj-innhold');
@@ -1830,23 +2070,44 @@ async function visInnstillinger() {
     oppdaterSletteKontroller();
 
     const innstillinger = await hentInnstillinger();
-    const fagliste = innstillinger.fagliste || standardFag;
-    
-    // Vis fagliste
-    const faglisteDiv = document.getElementById('fagliste');
-    faglisteDiv.innerHTML = fagliste.map(fag => `
-        <div class="fag-tag">
-            <span>${fag}</span>
-            <button onclick="fjernFag('${fag}')">×</button>
-        </div>
-    `).join('');
-    
-    // Sett innstillinger
-    document.getElementById('autoforslag-toggle').checked = innstillinger.autoforslag !== false;
-    document.getElementById('varsel-dager').value = innstillinger.varselDager || 30;
-    document.getElementById('semester-grense').value = innstillinger.semester_grense_mnd || 7;
-    document.getElementById('oppsummering-lengde').value = innstillinger.oppsummering_lengde || 'kort';
-    
+
+    if (!db) await initDB();
+
+    // Hent fagliste frå fag object store
+    const transaction = db.transaction(['fag'], 'readonly');
+    const fagStore = transaction.objectStore('fag');
+    const request = fagStore.getAll();
+
+    request.onsuccess = () => {
+        const fagArray = request.result || [];
+
+        // Vis fagliste
+        const faglisteDiv = document.getElementById('fagliste');
+        if (faglisteDiv) {
+            faglisteDiv.innerHTML = fagArray.map(fagObjekt => `
+                <div class="fag-tag">
+                    <span>${fagObjekt.namn}</span>
+                    <button onclick="fjernFag('${fagObjekt.namn}')">×</button>
+                </div>
+            `).join('');
+        }
+    };
+
+    request.onerror = () => {
+        console.error('Feil ved henting av fag:', request.error);
+    };
+
+    // Sett innstillinger (med null-sjekk)
+    const autoforslagToggle = document.getElementById('autoforslag-toggle');
+    const varselDager = document.getElementById('varsel-dager');
+    const semesterGrenseMnd = document.getElementById('semester-grense');
+    const oppsummeringLengde = document.getElementById('oppsummering-lengde');
+
+    if (autoforslagToggle) autoforslagToggle.checked = innstillinger.autoforslag !== false;
+    if (varselDager) varselDager.value = innstillinger.varselDager || 30;
+    if (semesterGrenseMnd) semesterGrenseMnd.value = innstillinger.semester_grense_mnd || 7;
+    if (oppsummeringLengde) oppsummeringLengde.value = innstillinger.oppsummering_lengde || 'kort';
+
     // Initialiser læreplan-UI
     await initLaereplanUI();
 }
@@ -1854,30 +2115,86 @@ async function visInnstillinger() {
 async function leggTilFag() {
     const nyttFag = document.getElementById('nytt-fag').value.trim();
     if (!nyttFag) return;
-    
-    const innstillinger = await hentInnstillinger();
-    const fagliste = innstillinger.fagliste || standardFag;
-    
-    if (!fagliste.includes(nyttFag)) {
-        fagliste.push(nyttFag);
-        await lagreInnstilling('fagliste', fagliste);
-        document.getElementById('nytt-fag').value = '';
-        visInnstillinger();
-        visToast('Fag lagt til!', 'success');
-    }
+
+    if (!db) await initDB();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['fag'], 'readwrite');
+        const fagStore = transaction.objectStore('fag');
+        const index = fagStore.index('namn');
+        const request = index.get(nyttFag);
+
+        request.onsuccess = () => {
+            if (request.result) {
+                // Fag finst allereie
+                visToast('Faget finst allereie!', 'warning');
+                resolve();
+            } else {
+                // Legg til nytt fag
+                const fagObjekt = {
+                    namn: nyttFag,
+                    aktiv: true,
+                    læreplanKopla: false
+                };
+                const addRequest = fagStore.add(fagObjekt);
+
+                addRequest.onsuccess = () => {
+                    document.getElementById('nytt-fag').value = '';
+                    visInnstillingar();
+                    visToast('Fag lagt til!', 'success');
+                    resolve();
+                };
+
+                addRequest.onerror = () => {
+                    console.error('Feil ved lagring av fag:', addRequest.error);
+                    visToast('Feil ved lagring av fag', 'error');
+                    reject(addRequest.error);
+                };
+            }
+        };
+
+        request.onerror = () => {
+            console.error('Feil ved sjekk av fag:', request.error);
+            reject(request.error);
+        };
+    });
 }
 
-async function fjernFag(fag) {
-    const innstillinger = await hentInnstillinger();
-    const fagliste = innstillinger.fagliste || standardFag;
-    const index = fagliste.indexOf(fag);
-    
-    if (index > -1) {
-        fagliste.splice(index, 1);
-        await lagreInnstilling('fagliste', fagliste);
-        visInnstillinger();
-        visToast('Fag fjernet!', 'success');
-    }
+async function fjernFag(fagNamn) {
+    if (!db) await initDB();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['fag'], 'readwrite');
+        const fagStore = transaction.objectStore('fag');
+        const index = fagStore.index('namn');
+        const request = index.get(fagNamn);
+
+        request.onsuccess = () => {
+            if (request.result) {
+                const deleteRequest = fagStore.delete(request.result.id);
+
+                deleteRequest.onsuccess = () => {
+                    visInnstillingar();
+                    visToast('Fag fjernet!', 'success');
+                    resolve();
+                };
+
+                deleteRequest.onerror = () => {
+                    console.error('Feil ved sletting av fag:', deleteRequest.error);
+                    visToast('Feil ved sletting av fag', 'error');
+                    reject(deleteRequest.error);
+                };
+            } else {
+                visToast('Fag ikkje funne', 'warning');
+                resolve();
+            }
+        };
+
+        request.onerror = () => {
+            console.error('Feil ved søk etter fag:', request.error);
+            reject(request.error);
+        };
+    });
 }
 
 async function lagreGjeldendeSkoleaar() {
@@ -1927,25 +2244,30 @@ async function importerEleverCSV(event) {
             
             // Valider headers
             const requiredHeaders = ['elev_id', 'fornavn', 'etternavn', 'klasse'];
-            const hasAllHeaders = requiredHeaders.every(h =>
+            const hasAllHeaders = requiredHeaders.every(h => 
                 headers.map(header => header.toLowerCase()).includes(h.toLowerCase())
             );
-
+            
             if (!hasAllHeaders) {
                 throw new Error('CSV må ha kolonner: elev_id, fornavn, etternavn, klasse');
             }
-
+            
             // Parse elever
             const elever = [];
             for (let i = 1; i < lines.length; i++) {
                 const line = lines[i].trim();
                 if (!line) continue;
-
+                
                 const values = line.split(',').map(v => v.trim());
                 const elev = {};
                 headers.forEach((header, index) => {
                     elev[header.toLowerCase()] = values[index];
                 });
+
+                // Migrer klasse til faggruppe om nødvendig
+                if (elev.klasse && !elev.faggruppe) {
+                    elev.faggruppe = elev.klasse;
+                }
 
                 // Legg til faggruppe som tom string om det ikkje finst
                 if (!elev.faggruppe) {
@@ -1957,7 +2279,7 @@ async function importerEleverCSV(event) {
                     elev.fag = '';
                 }
 
-                if (elev.elev_id && elev.fornavn && elev.etternavn && elev.klasse) {
+                if (elev.elev_id && elev.fornavn && elev.etternavn) {
                     elever.push(elev);
                 }
             }
@@ -1979,102 +2301,6 @@ async function importerEleverCSV(event) {
     };
     
     reader.readAsText(file);
-}
-
-// Funksjon for å fikse elevdata - ekstrahere klassenamn frå fornamn
-async function fiksElevdata() {
-    console.log('🔧 Startar fiksing av elevdata...');
-
-    const transaction = db.transaction(['elever'], 'readwrite');
-    const store = transaction.objectStore('elever');
-    const request = store.getAll();
-
-    return new Promise((resolve) => {
-        request.onsuccess = async () => {
-            const elever = request.result;
-            console.log(`📊 ${elever.length} elevar i database`);
-
-            if (elever.length > 0) {
-                console.log('📋 Første elev:', elever[0]);
-                console.log('fornamn:', elever[0].fornamn);
-                console.log('etternamn:', elever[0].etternamn);
-                console.log('fag:', elever[0].fag);
-                console.log('klasse:', elever[0].klasse);
-                console.log('faggruppe:', elever[0].faggruppe);
-            }
-
-            let oppdatert = 0;
-            let manglendeFaggruppe = 0;
-            let harKlasseMenIkkeFaggruppe = 0;
-
-            for (const elev of elever) {
-                let endret = false;
-
-                // Sjekk om fornamn startar med klassenamn-mønster (t.d. 1ST1, 2NA3, 3KR1)
-                // Mønster: siffer + 1-4 bokstavar + valfritt siffer + mellomrom
-                const klassenavnMatch = elev.fornamn?.match(/^(\d[A-ZÆØÅ]{1,4}\d?)\s+(.+)$/);
-
-                if (klassenavnMatch && (!elev.klasse || elev.klasse === 'undefined')) {
-                    const klassenamn = klassenavnMatch[1];
-                    const reeltFornamn = klassenavnMatch[2];
-
-                    elev.klasse = klassenamn;
-                    elev.fornamn = reeltFornamn;
-
-                    // Set også faggruppe for kompatibilitet
-                    if (!elev.faggruppe || elev.faggruppe === '') {
-                        elev.faggruppe = klassenamn;
-                    }
-
-                    endret = true;
-                    console.log(`✅ Ekstraherte klasse/faggruppe "${klassenamn}" frå fornamn: ${elev.fornamn}`);
-                }
-
-                // Migrer klasse til faggruppe om nødvendig
-                if (elev.klasse && (!elev.faggruppe || elev.faggruppe === '')) {
-                    elev.faggruppe = elev.klasse;
-                    endret = true;
-                    console.log(`✅ Migrerte klasse "${elev.klasse}" til faggruppe for ${elev.fornamn}`);
-                }
-
-                // Sjekk om faggruppe manglar
-                if (!elev.faggruppe || elev.faggruppe === '') {
-                    manglendeFaggruppe++;
-                    // Set faggruppe til tom string om det ikkje finst
-                    if (elev.faggruppe === undefined) {
-                        elev.faggruppe = '';
-                        endret = true;
-                    }
-                }
-
-                // Sjekk om fag manglar
-                if (elev.fag === undefined) {
-                    elev.fag = '';
-                    endret = true;
-                }
-
-                if (elev.klasse && elev.klasse !== 'undefined' && (!elev.faggruppe || elev.faggruppe === '')) {
-                    harKlasseMenIkkeFaggruppe++;
-                }
-
-                // Lagre endringane om noko blei endra
-                if (endret) {
-                    await store.put(elev);
-                    oppdatert++;
-                }
-            }
-
-            console.log(`✅ ${oppdatert} elevar oppdatert`);
-            console.log(`⚠️ ${manglendeFaggruppe} elevar manglar faggruppe`);
-            console.log(`⚠️ ${harKlasseMenIkkeFaggruppe} elevar har klasse men ikkje faggruppe`);
-
-            if (oppdatert > 0) {
-                visToast(`${oppdatert} elevar oppdatert med faggruppe!`, 'success');
-            }
-
-            resolve(oppdatert);
-        };
-    });
 }
 
 async function eksporterAlt() {
@@ -2121,7 +2347,7 @@ async function eksporterVurderingerCSV() {
             v.elev_id,
             elev.fornavn || '',
             elev.etternavn || '',
-            v.klasse,
+            v.faggruppe,
             v.fag,
             v.skoleaar || '',
             v.semester || '',
@@ -2231,7 +2457,7 @@ async function hentAlleElever() {
 async function hentEleverIKlasse(klasse) {
     const transaction = db.transaction(['elever'], 'readonly');
     const store = transaction.objectStore('elever');
-    const index = store.index('klasse');
+    const index = store.index('faggruppe');
     const request = index.getAll(klasse);
     
     return new Promise((resolve) => {
@@ -2322,11 +2548,9 @@ async function lagreInnstilling(key, value) {
 
 async function lastInnstillinger() {
     const innstillinger = await hentInnstillinger();
-    
+
     // Sett standard verdier om nødvendig
-    if (!innstillinger.fagliste) {
-        await lagreInnstilling('fagliste', standardFag);
-    }
+    // Merk: fagliste er no lagra i 'fag' object store, ikkje her
     if (innstillinger.autoforslag === undefined) {
         await lagreInnstilling('autoforslag', true);
     }
@@ -2347,21 +2571,21 @@ async function lastInnstillinger() {
 // UI hjelpefunksjoner
 async function lastKlasser() {
     const elever = await hentAlleElever();
-    const klasser = [...new Set(elever.map(e => e.klasse))].sort();
+    const klasser = [...new Set(elever.map(e => e.faggruppe))].sort();
     
     // Oppdater alle klassevelgere
     const selects = [
-        document.getElementById('hurtig-klasse'),
-        document.getElementById('elevoversikt-klasse'),
-        document.getElementById('oversikt-klasse'),
-        document.getElementById('historikk-klasse')
+        document.getElementById('hurtig-faggruppe'),
+        document.getElementById('elevoversikt-faggruppe'),
+        document.getElementById('oversikt-faggruppe'),
+        document.getElementById('historikk-faggruppe')
     ];
     
     selects.forEach(select => {
         if (!select) return;
         const currentValue = select.value;
         
-        if (select.id === 'historikk-klasse') {
+        if (select.id === 'historikk-faggruppe') {
             select.innerHTML = '<option value="">Alle klasser</option>';
         } else {
             select.innerHTML = '<option value="">-- Velg klasse --</option>';
@@ -2425,7 +2649,7 @@ async function slettVurderingerForKlasse(klasse) {
 
     const tx = db.transaction(['vurderinger'], 'readwrite');
     const store = tx.objectStore('vurderinger');
-    const index = store.index('klasse');
+    const index = store.index('faggruppe');
 
     let sletta = 0;
     await new Promise((resolve, reject) => {
@@ -2486,7 +2710,7 @@ async function slettEleverForKlasse(klasse) {
 
     const tx = db.transaction(['elever'], 'readwrite');
     const store = tx.objectStore('elever');
-    const index = store.index('klasse');
+    const index = store.index('faggruppe');
 
     let eleverSletta = 0;
     await new Promise((resolve, reject) => {
@@ -2557,7 +2781,7 @@ async function oppdaterSletteKontroller() {
     if (!klasseValg1 || !klasseValg2 || !elevValg) return;
 
     const elever = await hentAlleElever();
-    const klasser = [...new Set(elever.map(e => e.klasse))].sort();
+    const klasser = [...new Set(elever.map(e => e.faggruppe))].sort();
 
     const fyllKlasser = (sel) => {
         const valgt = sel.value;
@@ -2582,7 +2806,7 @@ async function oppdaterSletteKontroller() {
         .forEach(e => {
             const opt = document.createElement('option');
             opt.value = e.elev_id;
-            opt.textContent = `${e.etternavn}, ${e.fornavn} (${e.klasse})`;
+            opt.textContent = `${e.etternavn}, ${e.fornavn} (${e.faggruppe})`;
             elevValg.appendChild(opt);
         });
     if (elevValgt) elevValg.value = elevValgt;
@@ -2658,7 +2882,7 @@ function initSlettingUI() {
             if (!elevId) return visToast('Vel elev først', 'error');
 
             const elev = await hentElev(elevId);
-            const navn = elev ? `${elev.etternavn}, ${elev.fornavn} (${elev.klasse})` : elevId;
+            const navn = elev ? `${elev.etternavn}, ${elev.fornavn} (${elev.faggruppe})` : elevId;
 
             const ok = confirm(`Slette ${navn} og alle vurderingar knytte til eleven. Stadfeste`);
             if (!ok) return;
@@ -2797,10 +3021,10 @@ async function opneSluttvurdering() {
     }
 
     const elev = await hentElev(valgtElev);
-    document.getElementById('sluttv-elevinfo').textContent = elev ? `${elev.fornavn} ${elev.etternavn} (${elev.klasse})` : valgtElev;
+    document.getElementById('sluttv-elevinfo').textContent = elev ? `${elev.fornavn} ${elev.etternavn} (${elev.faggruppe})` : valgtElev;
 
     const innstillinger = await hentInnstillinger();
-    const fagliste = innstillinger.fagliste || ['Geografi', 'Samfunnskunnskap', 'Entreprenørskap 1', 'Entreprenørskap 2'];
+    const fagliste = await hentFagNamn();
 
     const fagSel = document.getElementById('sluttv-fag');
     fagSel.innerHTML = '';
@@ -2906,7 +3130,7 @@ async function lagreSluttKlikk() {
     const karakter = parseInt(valgtRadio.value, 10);
 
     const elev = await hentElev(valgtElev);
-    const klasse = elev ? elev.klasse : '';
+    const klasse = elev ? elev.faggruppe : '';
 
     const key = `${valgtElev}__${fag}__${skoleaar}__${semester}`;
 
@@ -2990,15 +3214,14 @@ async function initLaereplanUI() {
     const innstillinger = await hentInnstillinger();
     innstillinger.fagTilLaereplan = innstillinger.fagTilLaereplan || {};
 
-    const fagliste = innstillinger.fagliste || ['Geografi', 'Samfunnskunnskap', 'Entreprenørskap 1', 'Entreprenørskap 2'];
+    const fagliste = await hentFagNamn();
 
-    const fagSel = document.getElementById('lp-fag');
-    const lpValSel = document.getElementById('lp-val');
-    const lpList = document.getElementById('lp-list');
+    const fagSel = document.getElementById('lp-kople-fag');
+    const lpValSel = document.getElementById('lp-kople-plan');
     const kopleBtn = document.getElementById('lp-kople-btn');
     const uploadInput = document.getElementById('lp-upload');
 
-    if (!fagSel || !lpValSel || !lpList) return;
+    if (!fagSel || !lpValSel) return;
 
     // Fyll fag
     fagSel.innerHTML = '';
@@ -3026,12 +3249,12 @@ async function initLaereplanUI() {
         });
 
         // listbox admin
-        lpList.innerHTML = '';
+        lpAdminVelg.innerHTML = '';
         alle.forEach(lp => {
             const opt = document.createElement('option');
             opt.value = lp.id;
             opt.textContent = lp.kode ? `${lp.kode} – ${lp.tittel}` : lp.tittel;
-            lpList.appendChild(opt);
+            lpAdminVelg.appendChild(opt);
         });
 
         // set current selection based on fag
@@ -3043,40 +3266,39 @@ async function initLaereplanUI() {
     }
     
     async function oppdaterKoplingOversikt() {
-        const oversiktDiv = document.getElementById('lp-kopling-oversikt');
-        const listeDiv = document.getElementById('lp-kopling-liste');
-        
-        if (!oversiktDiv || !listeDiv) return;
-        
-        const fagTilLp = innstillinger.fagTilLaereplan || {};
-        const fagMedKopling = Object.keys(fagTilLp).filter(f => fagTilLp[f]);
-        
-        if (fagMedKopling.length === 0) {
-            oversiktDiv.style.display = 'none';
+        const tabellDiv = document.getElementById('aktive-koplingar-tabell');
+
+        if (!tabellDiv) {
+            console.error('Element aktive-koplingar-tabell ikkje funne');
             return;
         }
-        
-        // Vis oversikt
-        oversiktDiv.style.display = 'block';
-        
+
+        const fagTilLp = innstillinger.fagTilLaereplan || {};
+        const fagMedKopling = Object.keys(fagTilLp).filter(f => fagTilLp[f]);
+
+        if (fagMedKopling.length === 0) {
+            tabellDiv.innerHTML = '<p class="hjelpetekst">Ingen aktive koplingar enno</p>';
+            return;
+        }
+
         // Bygg tabell med koplingar
         const alle = await hentAlleLaereplaner();
-        let html = '<table style="width: 100%; border-collapse: collapse;">';
+        let html = '<table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;">';
         html += '<thead><tr style="background: #856404; color: white;">';
         html += '<th style="padding: 0.5rem; text-align: left;">Fag</th>';
         html += '<th style="padding: 0.5rem; text-align: left;">Læreplan</th>';
         html += '<th style="padding: 0.5rem; text-align: center;">Kompetansemål</th>';
         html += '<th style="padding: 0.5rem; text-align: center;">Handling</th>';
         html += '</tr></thead><tbody>';
-        
+
         for (const fag of fagMedKopling) {
             const lpId = fagTilLp[fag];
             const lp = alle.find(x => x.id === lpId);
-            
+
             if (lp) {
                 const kmCount = lp.kompetansemaal ? lp.kompetansemaal.length : 0;
                 const lpNamn = lp.kode ? `${lp.kode} – ${lp.tittel}` : lp.tittel;
-                
+
                 html += '<tr style="border-bottom: 1px solid #ddd;">';
                 html += `<td style="padding: 0.5rem;"><strong>${fag}</strong></td>`;
                 html += `<td style="padding: 0.5rem;">${lpNamn}</td>`;
@@ -3087,9 +3309,11 @@ async function initLaereplanUI() {
                 html += '</tr>';
             }
         }
-        
+
         html += '</tbody></table>';
-        listeDiv.innerHTML = html;
+        tabellDiv.innerHTML = html;
+
+        console.log(`✓ Oppdatert koplingoversikt: ${fagMedKopling.length} aktive koplingar`);
     }
     
     // Legg til global funksjon for å fjerne kopling
@@ -3145,6 +3369,23 @@ async function initLaereplanUI() {
     // Bruk knapp for å kople i staden for automatisk
     if (kopleBtn) {
         kopleBtn.onclick = saveAssignment;
+    }
+
+    // Læreplan-analyse knapp
+    const parseBtn = document.getElementById('lp-parse-btn');
+    if (parseBtn && uploadInput) {
+        parseBtn.onclick = () => {
+            const file = uploadInput.files[0];
+            if (!file) {
+                visToast('Du må først velje ei fil (PDF, DOCX eller JSON)', 'warning');
+                uploadInput.click(); // Opne filveljar
+                return;
+            }
+
+            // Trigger onchange event for å parse fila
+            const event = new Event('change', { bubbles: true });
+            uploadInput.dispatchEvent(event);
+        };
     }
 
     // Opplasting av læreplan
@@ -3209,22 +3450,23 @@ async function initLaereplanUI() {
     }
 
     // Admin actions
-    const navnEl = document.getElementById('lp-namn');
-    const kodeEl = document.getElementById('lp-kode');
-    const kompEl = document.getElementById('lp-komp');
-    const nyBtn = document.getElementById('lp-ny');
-    const lagreBtn = document.getElementById('lp-lagre');
-    const slettBtn = document.getElementById('lp-slett');
+    const lpAdminVelg = document.getElementById('lp-admin-velg');
+    const navnEl = document.getElementById('lp-admin-tittel');
+    const kodeEl = document.getElementById('lp-admin-kode');
+    const kompEl = document.getElementById('lp-admin-maal');
+    const nyBtn = document.getElementById('lp-admin-ny');
+    const lagreBtn = document.getElementById('lp-admin-lagre');
+    const slettBtn = document.getElementById('lp-admin-slett');
 
     function clearForm() {
         if (navnEl) navnEl.value = '';
         if (kodeEl) kodeEl.value = '';
         if (kompEl) kompEl.value = '';
-        lpList.value = '';
+        lpAdminVelg.value = '';
     }
 
-    lpList.onchange = async () => {
-        const id = lpList.value;
+    lpAdminVelg.onchange = async () => {
+        const id = lpAdminVelg.value;
         if (!id) return;
         const alle = await hentAlleLaereplaner();
         const lp = alle.find(x => x.id === id);
@@ -3245,7 +3487,7 @@ async function initLaereplanUI() {
         const kode = (kodeEl.value || '').trim();
         const kompetansemaal = (kompEl.value || '').split('\n').map(x => x.trim()).filter(Boolean);
 
-        const id = lpList.value || (kode || ('LP_' + Math.random().toString(36).slice(2)));
+        const id = lpAdminVelg.value || (kode || ('LP_' + Math.random().toString(36).slice(2)));
         await lagreLaereplan({
             id,
             kode,
@@ -3254,14 +3496,14 @@ async function initLaereplanUI() {
             oppretta: new Date().toISOString()
         });
         await renderLP();
-        lpList.value = id;
+        lpAdminVelg.value = id;
         visToast('Læreplan lagra', 'success');
         await oppdaterKompetansemaalDropdown();
     };
 
     const eksporterBtn = document.getElementById('lp-eksporter');
     if (eksporterBtn) eksporterBtn.onclick = async () => {
-        const id = lpList.value;
+        const id = lpAdminVelg.value;
         if (!id) {
             visToast('Vel ei læreplan å eksportere', 'error');
             return;
@@ -3292,7 +3534,7 @@ async function initLaereplanUI() {
     };
 
     if (slettBtn) slettBtn.onclick = async () => {
-        const id = lpList.value;
+        const id = lpAdminVelg.value;
         if (!id) {
             visToast('Vel ei læreplan å slette', 'error');
             return;
@@ -3885,43 +4127,43 @@ let ferdigheterGraf = null;
 let trendGraf = null;
 
 // Initialiser grafikk-view
-function initGrafikkView() {
+async function initGrafikkView() {
     // Fyll inn dropdown-menyar
-    const klasseSel = document.getElementById('grafikk-klasse');
+    const faggruppeSel = document.getElementById('grafikk-faggruppe');
     const fagSel = document.getElementById('grafikk-fag');
     const skoleaarSel = document.getElementById('grafikk-skoleaar');
-    
-    if (klasseSel) {
-        fyllKlasseListe(klasseSel);
+
+    if (faggruppeSel) {
+        await fyllFaggruppeListe(faggruppeSel);
     }
-    
+
     if (fagSel) {
-        fyllFagListe(fagSel);
+        await fyllFagListe(fagSel);
     }
-    
+
     if (skoleaarSel) {
         fyllSkoleaarListe(skoleaarSel);
     }
-    
+
     // Event listeners
-    if (klasseSel) klasseSel.addEventListener('change', oppdaterGrafikkStatistikk);
+    if (faggruppeSel) faggruppeSel.addEventListener('change', oppdaterGrafikkStatistikk);
     if (fagSel) fagSel.addEventListener('change', oppdaterGrafikkStatistikk);
     if (skoleaarSel) skoleaarSel.addEventListener('change', oppdaterGrafikkStatistikk);
-    
+
     oppdaterGrafikkStatistikk();
 }
 
 // Oppdater statistikk og grafikk
 async function oppdaterGrafikkStatistikk() {
-    const klasse = document.getElementById('grafikk-klasse')?.value || '';
+    const klasse = document.getElementById('grafikk-faggruppe')?.value || '';
     const fag = document.getElementById('grafikk-fag')?.value || '';
     const skoleaar = document.getElementById('grafikk-skoleaar')?.value || '';
     
     // Hent vurderingar basert på filter
     let vurderinger = await hentAlleVurderingar();
-    
+
     if (klasse) {
-        vurderinger = vurderinger.filter(v => v.klasse === klasse);
+        vurderinger = vurderinger.filter(v => v.faggruppe === klasse);
     }
     
     if (fag) {
@@ -4436,7 +4678,7 @@ function tegnElevGraf(vurderinger, type) {
 
 // Eksporter til Excel
 async function eksporterTilExcel() {
-    const klasse = document.getElementById('oversikt-klasse')?.value || '';
+    const klasse = document.getElementById('oversikt-faggruppe')?.value || '';
     const fag = document.getElementById('oversikt-fag')?.value || '';
     const skoleaar = document.getElementById('oversikt-skoleaar')?.value || '';
     const semester = document.getElementById('oversikt-semester')?.value || '';
@@ -4448,8 +4690,8 @@ async function eksporterTilExcel() {
     
     let vurderinger = await hentAlleVurderingar();
     
-    vurderinger = vurderinger.filter(v => 
-        v.klasse === klasse && 
+    vurderinger = vurderinger.filter(v =>
+        v.faggruppe === klasse &&
         v.fag === fag &&
         (!skoleaar || v.skoleaar === skoleaar) &&
         (!semester || v.semester === semester)
@@ -4501,7 +4743,7 @@ async function eksporterTilExcel() {
 async function eksporterTilPDF() {
     const { jsPDF } = window.jspdf;
     
-    const klasse = document.getElementById('oversikt-klasse')?.value || '';
+    const klasse = document.getElementById('oversikt-faggruppe')?.value || '';
     const fag = document.getElementById('oversikt-fag')?.value || '';
     const skoleaar = document.getElementById('oversikt-skoleaar')?.value || '';
     const semester = document.getElementById('oversikt-semester')?.value || '';
@@ -4513,8 +4755,8 @@ async function eksporterTilPDF() {
     
     let vurderinger = await hentAlleVurderingar();
     
-    vurderinger = vurderinger.filter(v => 
-        v.klasse === klasse && 
+    vurderinger = vurderinger.filter(v =>
+        v.faggruppe === klasse &&
         v.fag === fag &&
         (!skoleaar || v.skoleaar === skoleaar) &&
         (!semester || v.semester === semester)
@@ -4574,7 +4816,7 @@ let fuseKompetansemaal = null;
 
 // Initialiser Fuse for elevsøk
 async function initElevSok() {
-    const klasse = document.getElementById('hurtig-klasse')?.value;
+    const klasse = document.getElementById('hurtig-faggruppe')?.value;
     if (!klasse) return;
     
     const elever = await hentElevarIKlasse(klasse);
@@ -4622,7 +4864,7 @@ function sokElever(query) {
 
 // Vis alle elever
 async function visAlleElever() {
-    const klasse = document.getElementById('hurtig-klasse')?.value;
+    const klasse = document.getElementById('hurtig-faggruppe')?.value;
     if (!klasse) return;
     
     const elever = await hentElevarIKlasse(klasse);
@@ -4752,9 +4994,101 @@ function forslaFerdigheter(kompetansemaalTekst) {
     return [...new Set(forslag)];
 }
 
+// ============ DUMMY-FUNKSJONAR FOR BAKOVERKOMPATIBILITET ============
+
+// Desse funksjonane er flytta til andre modular eller er ikkje lenger nødvendige
+function fyllSkoleaarListe(selectElement) {
+    // Fyller dropdown med skoleår
+    const currentYear = new Date().getFullYear();
+    for (let i = -2; i <= 2; i++) {
+        const year = currentYear + i;
+        const option = document.createElement('option');
+        option.value = `${year}-${year + 1}`;
+        option.textContent = `${year}/${year + 1}`;
+        selectElement.appendChild(option);
+    }
+}
+
+async function fyllFaggruppeListe(selectElement) {
+    if (!selectElement) return;
+
+    const elever = await hentAlleElever();
+    const faggrupper = [...new Set(elever.map(e => e.faggruppe).filter(Boolean))].sort();
+
+    const currentValue = selectElement.value;
+    selectElement.innerHTML = '<option value="">Alle faggrupper</option>';
+
+    faggrupper.forEach(fg => {
+        const option = document.createElement('option');
+        option.value = fg;
+        option.textContent = fg;
+        selectElement.appendChild(option);
+    });
+
+    if (currentValue && faggrupper.includes(currentValue)) {
+        selectElement.value = currentValue;
+    }
+}
+
+async function fyllFagListe(selectElement) {
+    if (!selectElement) return;
+
+    const fagliste = await hentFagNamn();
+
+    const currentValue = selectElement.value;
+    selectElement.innerHTML = '<option value="">Alle fag</option>';
+
+    fagliste.forEach(fag => {
+        const option = document.createElement('option');
+        option.value = fag;
+        option.textContent = fag;
+        selectElement.appendChild(option);
+    });
+
+    if (currentValue && fagliste.includes(currentValue)) {
+        selectElement.value = currentValue;
+    }
+}
+
+async function initKlasseadministrasjon() {
+    // Flytta til enhancements.js / elevadministrasjon.js
+    return Promise.resolve();
+}
+
+async function initFagadministrasjon() {
+    // Flytta til enhancements.js
+    return Promise.resolve();
+}
+
+async function initLaereplanKopling() {
+    // Flytta til verbbibliotek.js
+    return Promise.resolve();
+}
+
+async function initAdministrerLaereplaner() {
+    // Flytta til verbbibliotek.js
+    return Promise.resolve();
+}
+
+async function hentAlleVurderingar() {
+    // Hent alle vurderingar frå database
+    if (!db) await initDB();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['vurderinger'], 'readonly');
+        const store = transaction.objectStore('vurderinger');
+        const request = store.getAll();
+
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => {
+            console.error('Feil ved henting av vurderingar:', request.error);
+            resolve([]);
+        };
+    });
+}
+
 // ============ INITIALISERING ============
 
-// Initialiser v3-funksjoner når DOM er klar
-if (document.readyState === 'loading') {
-    
+// App initialisert via DOMContentLoaded i andre modular
+console.log('Vurderingsapp v3 - Hovudmodul lasta');
 
