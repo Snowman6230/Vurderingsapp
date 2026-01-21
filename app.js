@@ -3131,40 +3131,39 @@ async function initLaereplanUI() {
     }
     
     async function oppdaterKoplingOversikt() {
-        const oversiktDiv = document.getElementById('lp-kopling-oversikt');
-        const listeDiv = document.getElementById('lp-kopling-liste');
-        
-        if (!oversiktDiv || !listeDiv) return;
-        
-        const fagTilLp = innstillinger.fagTilLaereplan || {};
-        const fagMedKopling = Object.keys(fagTilLp).filter(f => fagTilLp[f]);
-        
-        if (fagMedKopling.length === 0) {
-            oversiktDiv.style.display = 'none';
+        const tabellDiv = document.getElementById('aktive-koplingar-tabell');
+
+        if (!tabellDiv) {
+            console.error('Element aktive-koplingar-tabell ikkje funne');
             return;
         }
-        
-        // Vis oversikt
-        oversiktDiv.style.display = 'block';
-        
+
+        const fagTilLp = innstillinger.fagTilLaereplan || {};
+        const fagMedKopling = Object.keys(fagTilLp).filter(f => fagTilLp[f]);
+
+        if (fagMedKopling.length === 0) {
+            tabellDiv.innerHTML = '<p class="hjelpetekst">Ingen aktive koplingar enno</p>';
+            return;
+        }
+
         // Bygg tabell med koplingar
         const alle = await hentAlleLaereplaner();
-        let html = '<table style="width: 100%; border-collapse: collapse;">';
+        let html = '<table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;">';
         html += '<thead><tr style="background: #856404; color: white;">';
         html += '<th style="padding: 0.5rem; text-align: left;">Fag</th>';
         html += '<th style="padding: 0.5rem; text-align: left;">Læreplan</th>';
         html += '<th style="padding: 0.5rem; text-align: center;">Kompetansemål</th>';
         html += '<th style="padding: 0.5rem; text-align: center;">Handling</th>';
         html += '</tr></thead><tbody>';
-        
+
         for (const fag of fagMedKopling) {
             const lpId = fagTilLp[fag];
             const lp = alle.find(x => x.id === lpId);
-            
+
             if (lp) {
                 const kmCount = lp.kompetansemaal ? lp.kompetansemaal.length : 0;
                 const lpNamn = lp.kode ? `${lp.kode} – ${lp.tittel}` : lp.tittel;
-                
+
                 html += '<tr style="border-bottom: 1px solid #ddd;">';
                 html += `<td style="padding: 0.5rem;"><strong>${fag}</strong></td>`;
                 html += `<td style="padding: 0.5rem;">${lpNamn}</td>`;
@@ -3175,9 +3174,11 @@ async function initLaereplanUI() {
                 html += '</tr>';
             }
         }
-        
+
         html += '</tbody></table>';
-        listeDiv.innerHTML = html;
+        tabellDiv.innerHTML = html;
+
+        console.log(`✓ Oppdatert koplingoversikt: ${fagMedKopling.length} aktive koplingar`);
     }
     
     // Legg til global funksjon for å fjerne kopling

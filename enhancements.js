@@ -428,8 +428,11 @@ async function hentVerbtalForFag(fagNamn) {
 async function visFagDetaljar(fagNamn) {
     // Hent fagId frå database
     const fagId = await hentFagIdFraNamn(fagNamn);
+    console.log(`visFagDetaljar: fagNamn="${fagNamn}", fagId=${fagId}`);
+
     if (!fagId) {
-        showConfirmation('Fag ikkje funne', 'error');
+        showConfirmation(`Fag "${fagNamn}" ikkje funne i database. Prøv å oppdatere sida.`, 'error');
+        console.error(`Kunne ikkje finne fagId for fagNamn="${fagNamn}"`);
         return;
     }
 
