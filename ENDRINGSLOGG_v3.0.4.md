@@ -17,8 +17,8 @@ Denne oppdateringa fiksar problem med elevdata der klassenamn har blitt importer
 - Kjører automatisk når appen startar
 
 **Døme:**
-- **Før:** fornamn: "1ST1 Mohammad Refai", klasse: undefined
-- **Etter:** fornamn: "Mohammad Refai", klasse: "1ST1"
+- **Før:** fornamn: "1ST1 Mohammad Refai", klasse: undefined, faggruppe: undefined
+- **Etter:** fornamn: "Mohammad Refai", klasse: "1ST1", faggruppe: "1ST1"
 
 ---
 
@@ -60,8 +60,9 @@ elev_002,Anna,Hansen,1ST1,Geografi,Gruppe B
 ## 📋 TEKNISKE DETALJAR
 
 ### Nye funksjoner i app.js:
-- `fiksElevdata()` - Automatisk rydding av elevdata (linje ~1960)
+- `fiksElevdata()` - Automatisk rydding av elevdata (linje ~1985)
   - Ekstrahere klassenamn frå fornamn
+  - Migrer klasse til faggruppe
   - Sikrar at alle elevar har fag og faggruppe-felt
   - Viser detaljerte konsolloggar for feilsøking
 
