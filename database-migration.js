@@ -49,8 +49,8 @@ function migrerTilV4(db, transaction) {
         console.log('✓ Arkiv object store oppretta');
     }
 
-    // 2. Oppdater elever object store
-    if (transaction.objectStore('elever')) {
+    // 2. Oppdater elever object store (berre om det eksisterer)
+    if (db.objectStoreNames.contains('elever')) {
         const elevStore = transaction.objectStore('elever');
 
         // Legg til faggruppe index om det ikkje finst
@@ -69,8 +69,8 @@ function migrerTilV4(db, transaction) {
         migrerKlasseTilFaggruppe(elevStore);
     }
 
-    // 3. Oppdater vurderinger object store
-    if (transaction.objectStore('vurderinger')) {
+    // 3. Oppdater vurderinger object store (berre om det eksisterer)
+    if (db.objectStoreNames.contains('vurderinger')) {
         const vurdStore = transaction.objectStore('vurderinger');
 
         // Legg til faggruppe index om det ikkje finst
