@@ -745,7 +745,7 @@ function visView(view) {
         case 'elevoversikt':
             visElevoversikt();
             break;
-        case 'klasseoversikt':
+        case 'fagoversikt':
             oppdaterFagoversikt();
             break;
 		case 'grafikk':
@@ -4697,6 +4697,23 @@ async function initLaereplanKopling() {
 async function initAdministrerLaereplaner() {
     // Flytta til verbbibliotek.js
     return Promise.resolve();
+}
+
+async function hentAlleVurderingar() {
+    // Hent alle vurderingar frå database
+    if (!db) await initDB();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['vurderinger'], 'readonly');
+        const store = transaction.objectStore('vurderinger');
+        const request = store.getAll();
+
+        request.onsuccess = () => resolve(request.result || []);
+        request.onerror = () => {
+            console.error('Feil ved henting av vurderingar:', request.error);
+            resolve([]);
+        };
+    });
 }
 
 // ============ INITIALISERING ============
