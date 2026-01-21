@@ -303,8 +303,69 @@ async function hentArkiverteSkoleaar() {
     });
 }
 
+/**
+ * Migrer eksisterande elevar og vurderingar frå klasse til faggruppe
+ * Køyrer automatisk om nødvendig
+ */
+async function migrerEksisterandeData() {
+    const db = await migrerDatabase();
+
+    return new Promise((resolve, reject) => {
+        const transaction = db.transaction(['elever', 'vurderinger'], 'readwrite');
+        let migrerteElevar = 0;
+        let migrerteVurderingar = 0;
+
+        // Migrer elevar
+        const elevStore = transaction.objectStore('elever');
+        const elevRequest = elevStore.openCursor();
+
+        elevRequest.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if (cursor) {
+                const elev = cursor.value;
+                // Om eleven har klasse men ikkje faggruppe, kopier verdien
+                if (elev.klasse && !elev.faggruppe) {
+                    elev.faggruppe = elev.klasse;
+                    cursor.update(elev);
+                    migrerteElevar++;
+                }
+                cursor.continue();
+            } else {
+                // Når alle elevar er migrerte, migrer vurderingar
+                const vurdStore = transaction.objectStore('vurderinger');
+                const vurdRequest = vurdStore.openCursor();
+
+                vurdRequest.onsuccess = (event) => {
+                    const cursor = event.target.result;
+                    if (cursor) {
+                        const vurd = cursor.value;
+                        // Om vurderinga har klasse men ikkje faggruppe, kopier verdien
+                        if (vurd.klasse && !vurd.faggruppe) {
+                            vurd.faggruppe = vurd.klasse;
+                            cursor.update(vurd);
+                            migrerteVurderingar++;
+                        }
+                        cursor.continue();
+                    } else {
+                        // Ferdig med migrasjon
+                        if (migrerteElevar > 0 || migrerteVurderingar > 0) {
+                            console.log(`✓ Migrerte ${migrerteElevar} elevar og ${migrerteVurderingar} vurderingar frå klasse til faggruppe`);
+                        }
+                        resolve({ elevar: migrerteElevar, vurderingar: migrerteVurderingar });
+                    }
+                };
+
+                vurdRequest.onerror = () => reject(vurdRequest.error);
+            }
+        };
+
+        elevRequest.onerror = () => reject(elevRequest.error);
+    });
+}
+
 // Eksporter funksjonar for bruk i app.js
 window.migrerDatabase = migrerDatabase;
+window.migrerEksisterandeData = migrerEksisterandeData;
 window.arkiverVurderingar = arkiverVurderingar;
 window.hentArkiverteVurderingar = hentArkiverteVurderingar;
 window.hentArkiverteSkoleaar = hentArkiverteSkoleaar;

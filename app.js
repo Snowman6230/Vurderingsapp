@@ -605,6 +605,12 @@ async function initDB() {
 // Initialiser app komponenter
 async function initApp() {
     await lastInnstillinger();
+
+    // Migrer eksisterande data frå klasse til faggruppe
+    if (typeof migrerEksisterandeData === 'function') {
+        await migrerEksisterandeData();
+    }
+
     await oppdaterSkoleaarOgSemester();
     await lastKlasser();
     await lastElever();
@@ -4012,18 +4018,18 @@ let ferdigheterGraf = null;
 let trendGraf = null;
 
 // Initialiser grafikk-view
-function initGrafikkView() {
+async function initGrafikkView() {
     // Fyll inn dropdown-menyar
     const faggruppeSel = document.getElementById('grafikk-faggruppe');
     const fagSel = document.getElementById('grafikk-fag');
     const skoleaarSel = document.getElementById('grafikk-skoleaar');
-    
+
     if (faggruppeSel) {
-        fyllFaggruppeListe(faggruppeSel);
+        await fyllFaggruppeListe(faggruppeSel);
     }
 
     if (fagSel) {
-        fyllFagListe(fagSel);
+        await fyllFagListe(fagSel);
     }
 
     if (skoleaarSel) {
@@ -4034,7 +4040,7 @@ function initGrafikkView() {
     if (faggruppeSel) faggruppeSel.addEventListener('change', oppdaterGrafikkStatistikk);
     if (fagSel) fagSel.addEventListener('change', oppdaterGrafikkStatistikk);
     if (skoleaarSel) skoleaarSel.addEventListener('change', oppdaterGrafikkStatistikk);
-    
+
     oppdaterGrafikkStatistikk();
 }
 
@@ -4894,14 +4900,45 @@ function fyllSkoleaarListe(selectElement) {
     }
 }
 
-function fyllFaggruppeListe(selectElement) {
-    // Tom implementering - faggrupper lagrast no i database
-    console.log('fyllFaggruppeListe: funksjon ikkje implementert enno');
+async function fyllFaggruppeListe(selectElement) {
+    if (!selectElement) return;
+
+    const elever = await hentAlleElever();
+    const faggrupper = [...new Set(elever.map(e => e.faggruppe).filter(Boolean))].sort();
+
+    const currentValue = selectElement.value;
+    selectElement.innerHTML = '<option value="">Alle faggrupper</option>';
+
+    faggrupper.forEach(fg => {
+        const option = document.createElement('option');
+        option.value = fg;
+        option.textContent = fg;
+        selectElement.appendChild(option);
+    });
+
+    if (currentValue && faggrupper.includes(currentValue)) {
+        selectElement.value = currentValue;
+    }
 }
 
-function fyllFagListe(selectElement) {
-    // Tom implementering - fag lagrast no i database
-    console.log('fyllFagListe: funksjon ikkje implementert enno');
+async function fyllFagListe(selectElement) {
+    if (!selectElement) return;
+
+    const fagliste = await hentFagNamn();
+
+    const currentValue = selectElement.value;
+    selectElement.innerHTML = '<option value="">Alle fag</option>';
+
+    fagliste.forEach(fag => {
+        const option = document.createElement('option');
+        option.value = fag;
+        option.textContent = fag;
+        selectElement.appendChild(option);
+    });
+
+    if (currentValue && fagliste.includes(currentValue)) {
+        selectElement.value = currentValue;
+    }
 }
 
 async function initKlasseadministrasjon() {
