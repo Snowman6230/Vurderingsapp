@@ -257,12 +257,21 @@ async function søkElevEtterNamn(fornamn, etternamn) {
         const store = transaction.objectStore('elever');
         const request = store.getAll();
 
+        request.onerror = () => {
+            console.error('søkElevEtterNamn: Database-feil:', request.error);
+            reject(request.error);
+        };
+
         request.onsuccess = () => {
             const alleElevar = request.result;
-            const match = alleElevar.filter(e =>
-                e.fornamn.toLowerCase() === fornamn.toLowerCase() &&
-                e.etternamn.toLowerCase() === etternamn.toLowerCase()
-            );
+            const match = alleElevar.filter(e => {
+                // Sikkerheitssjekk for å unngå feil viss felt manglar
+                if (!e.fornamn || !e.etternamn || !fornamn || !etternamn) {
+                    return false;
+                }
+                return e.fornamn.toLowerCase() === fornamn.toLowerCase() &&
+                    e.etternamn.toLowerCase() === etternamn.toLowerCase();
+            });
             resolve(match);
         };
 
@@ -336,8 +345,11 @@ async function visIdentitetsdialog(nyElev, eksisterandeElevar) {
  * Legg til elev manuelt med identitetssjekk
  */
 async function leggTilElevManuelt(fag, fornamn, etternamn, faggruppe, basisgruppe) {
+    console.log(`leggTilElevManuelt: fag="${fag}", fornamn="${fornamn}", etternamn="${etternamn}", faggruppe="${faggruppe}"`);
+
     // 1. Søk etter eksisterande elev
     const eksisterandeElevar = await søkElevEtterNamn(fornamn, etternamn);
+    console.log(`  Fann ${eksisterandeElevar.length} eksisterande elevar`);
 
     let elevId;
 
@@ -359,10 +371,11 @@ async function leggTilElevManuelt(fag, fornamn, etternamn, faggruppe, basisgrupp
         }
     } else {
         elevId = genererElevId();
+        console.log(`  Genererte ny elevId: ${elevId}`);
     }
 
     // 3. Lagre elev
-    await lagreElev({
+    const elevData = {
         elev_id: elevId,
         fornamn,
         etternamn,
@@ -371,7 +384,17 @@ async function leggTilElevManuelt(fag, fornamn, etternamn, faggruppe, basisgrupp
         basisgruppe: basisgruppe || '',
         aktiv: true,
         opprettetDato: new Date().toISOString()
-    });
+    };
+
+    console.log(`  Lagrar elev til database:`, elevData);
+
+    try {
+        await lagreElev(elevData);
+        console.log(`  ✓ Elev lagra: ${fornamn} ${etternamn}`);
+    } catch (error) {
+        console.error(`  ✗ Feil ved lagring av elev:`, error);
+        throw error;
+    }
 
     return elevId;
 }

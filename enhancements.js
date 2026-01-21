@@ -697,9 +697,11 @@ async function visVismaPDFDialog(fag) {
 
     modal.querySelector('#visma-pdf-import-btn').addEventListener('click', async () => {
         // Lagre elevar med bilete
+        console.log(`📝 Startar lagring av ${parsedeElevar.length} elevar...`);
         let lagra = 0;
         for (const elev of parsedeElevar) {
             try {
+                console.log(`  Lagrar elev: ${elev.fornamn} ${elev.etternamn} (${elev.faggruppe})`);
                 await leggTilElevManuelt(fag, elev.fornamn, elev.etternamn, elev.faggruppe, '');
                 // TODO: Lagre bilete til database
                 lagra++;
@@ -708,11 +710,15 @@ async function visVismaPDFDialog(fag) {
             }
         }
 
+        console.log(`✓ Lagra ${lagra} av ${parsedeElevar.length} elevar til database`);
         showConfirmation(`Lagra ${lagra} av ${parsedeElevar.length} elevar`, 'success');
         document.body.removeChild(modal);
 
-        // Oppdater fagoversikt
+        // Oppdater fagoversikt og last klassar på nytt
         await oppdaterFagoversikt();
+        if (typeof lastKlasser === 'function') {
+            await lastKlasser();
+        }
     });
 }
 
