@@ -2020,8 +2020,21 @@ async function fiksElevdata() {
 
                     elev.klasse = klassenamn;
                     elev.fornamn = reeltFornamn;
+
+                    // Set også faggruppe for kompatibilitet
+                    if (!elev.faggruppe || elev.faggruppe === '') {
+                        elev.faggruppe = klassenamn;
+                    }
+
                     endret = true;
-                    console.log(`✅ Ekstraherte klasse "${klassenamn}" frå fornamn: ${elev.fornamn}`);
+                    console.log(`✅ Ekstraherte klasse/faggruppe "${klassenamn}" frå fornamn: ${elev.fornamn}`);
+                }
+
+                // Migrer klasse til faggruppe om nødvendig
+                if (elev.klasse && (!elev.faggruppe || elev.faggruppe === '')) {
+                    elev.faggruppe = elev.klasse;
+                    endret = true;
+                    console.log(`✅ Migrerte klasse "${elev.klasse}" til faggruppe for ${elev.fornamn}`);
                 }
 
                 // Sjekk om faggruppe manglar
@@ -2056,7 +2069,7 @@ async function fiksElevdata() {
             console.log(`⚠️ ${harKlasseMenIkkeFaggruppe} elevar har klasse men ikkje faggruppe`);
 
             if (oppdatert > 0) {
-                visToast(`${oppdatert} elevar oppdatert med klassenamn!`, 'success');
+                visToast(`${oppdatert} elevar oppdatert med faggruppe!`, 'success');
             }
 
             resolve(oppdatert);
