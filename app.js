@@ -2201,7 +2201,7 @@ async function leggTilFag() {
 
                 addRequest.onsuccess = () => {
                     document.getElementById('nytt-fag').value = '';
-                    visInnstillingar();
+                    visInnstillinger();
                     visToast('Fag lagt til!', 'success');
                     resolve();
                 };
@@ -2235,7 +2235,7 @@ async function fjernFag(fagNamn) {
                 const deleteRequest = fagStore.delete(request.result.id);
 
                 deleteRequest.onsuccess = () => {
-                    visInnstillingar();
+                    visInnstillinger();
                     visToast('Fag fjernet!', 'success');
                     resolve();
                 };
