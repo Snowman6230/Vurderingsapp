@@ -1,13 +1,14 @@
-// Database Migration Script for Vurderingsapp v3.0.3
-// Migrerer frå v3 (klasse) til v4 (faggruppe + arkiv)
+// Database Migration Script for Vurderingsapp v3.0.4
+// Migrerer frå v3/v4 til v5 (legg til fag object store)
 // © Alpindata
 
-const NEW_DB_VERSION = 4;
+const NEW_DB_VERSION = 5;
 
 /**
- * Migrer database frå versjon 3 til versjon 4
+ * Migrer database frå versjon 3/4 til versjon 5
  * - Legg til arkiv object store
  * - Legg til faggruppe index på elever og vurderinger
+ * - Legg til fag object store
  * - Migrer klasse → faggruppe (bakoverkompatibel)
  */
 async function migrerDatabase() {
@@ -27,6 +28,11 @@ async function migrerDatabase() {
             // Migrer frå v3 til v4
             if (oldVersion < 4) {
                 migrerTilV4(db, transaction);
+            }
+
+            // Migrer frå v4 til v5
+            if (oldVersion < 5) {
+                migrerTilV5(db, transaction);
             }
         };
     });
@@ -143,6 +149,22 @@ function migrerTilV4(db, transaction) {
         });
         fagStore.createIndex('namn', 'namn', { unique: true });
         console.log('✓ Fag object store oppretta');
+    }
+}
+
+function migrerTilV5(db, transaction) {
+    console.log('Migrerer til versjon 5: Sikrar at fag object store finst');
+
+    // Sikre at fag object store finst (for databaser som blei oppretta med v4 utan fag)
+    if (!db.objectStoreNames.contains('fag')) {
+        const fagStore = db.createObjectStore('fag', {
+            keyPath: 'id',
+            autoIncrement: true
+        });
+        fagStore.createIndex('namn', 'namn', { unique: true });
+        console.log('✓ Fag object store oppretta i v5-migrering');
+    } else {
+        console.log('✓ Fag object store eksisterer allereie');
     }
 }
 

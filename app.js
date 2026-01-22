@@ -3,7 +3,7 @@
 
 // Database konfigurasjon
 const DB_NAME = 'VurderingsappDB';
-const DB_VERSION = 4; // Oppdatert til v4 (faggruppe + arkiv)
+const DB_VERSION = 5; // Oppdatert til v5 (fag object store fiksa)
 let db;
 
 
@@ -595,6 +595,14 @@ async function initDB() {
             store.createIndex('tittel', 'tittel', { unique: false });
         } else {
             console.log('✓ Object store laereplaner eksisterer allereie');
+        }
+
+        if (!db.objectStoreNames.contains('fag')) {
+            console.log('Opprettar object store: fag');
+            const store = db.createObjectStore('fag', { keyPath: 'id', autoIncrement: true });
+            store.createIndex('namn', 'namn', { unique: false });
+        } else {
+            console.log('✓ Object store fag eksisterer allereie');
         }
 
         console.log('✓ Database-oppgradering fullført');
