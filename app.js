@@ -989,9 +989,6 @@ function visView(view) {
         case 'elevoversikt':
             visElevoversikt();
             break;
-        case 'fagoversikt':
-            oppdaterFagoversikt();
-            break;
 		case 'grafikk':
 			try { oppdaterGrafikk(); } catch (e) {}
 			break;
@@ -2169,6 +2166,11 @@ async function visInnstillinger() {
 
     // Initialiser elevar per fag-administrasjon
     await initElevarPerFagAdmin();
+
+    // Oppdater fagoversikt
+    if (typeof oppdaterFagoversikt === 'function') {
+        await oppdaterFagoversikt();
+    }
 }
 
 async function leggTilFag() {
