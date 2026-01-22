@@ -2154,6 +2154,9 @@ async function visInnstillinger() {
 
     // Initialiser læreplan-UI
     await initLaereplanUI();
+
+    // Initialiser elevar per fag-administrasjon
+    await initElevarPerFagAdmin();
 }
 
 async function leggTilFag() {
@@ -2239,6 +2242,173 @@ async function fjernFag(fagNamn) {
             reject(request.error);
         };
     });
+}
+
+// Administrer elevar per fag
+async function initElevarPerFagAdmin() {
+    const adminFagVelg = document.getElementById('admin-fag-velg');
+    if (!adminFagVelg) return;
+
+    // Populer fag-dropdown
+    const fagNamn = await hentFagNamn();
+    adminFagVelg.innerHTML = '<option value="">-- Vel fag --</option>';
+    fagNamn.forEach(fag => {
+        const option = document.createElement('option');
+        option.value = fag;
+        option.textContent = fag;
+        adminFagVelg.appendChild(option);
+    });
+
+    // Event listener for fag-val
+    adminFagVelg.addEventListener('change', async (e) => {
+        const fag = e.target.value;
+        if (fag) {
+            await visElevarForFag(fag);
+        } else {
+            document.getElementById('admin-elevar-for-fag').style.display = 'none';
+        }
+    });
+
+    // Event listener for å legge til elevar
+    const leggTilBtn = document.getElementById('admin-legg-til-elevar-btn');
+    if (leggTilBtn) {
+        leggTilBtn.addEventListener('click', async () => {
+            await leggTilElevarTilFag();
+        });
+    }
+
+    // Event listener for å fjerne elevar
+    const fjernBtn = document.getElementById('admin-fjern-elevar-btn');
+    if (fjernBtn) {
+        fjernBtn.addEventListener('click', async () => {
+            await fjernElevarFraFag();
+        });
+    }
+}
+
+async function visElevarForFag(fag) {
+    const container = document.getElementById('admin-elevar-for-fag');
+    const elevListe = document.getElementById('admin-elevar-liste');
+    const elevVelg = document.getElementById('admin-elev-velg');
+
+    container.style.display = 'block';
+
+    // Hent elevar i dette faget
+    const eleverIFag = await hentEleverIFag(fag);
+
+    // Vis elevar i faget
+    if (eleverIFag.length > 0) {
+        elevListe.innerHTML = eleverIFag.map(elev => `
+            <div class="elev-tag" style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #e8f5e9; border-radius: 4px; margin-bottom: 0.25rem;">
+                <span>${elev.fornavn} ${elev.etternavn}</span>
+                <span style="color: #666; font-size: 0.85em;">(${elev.faggruppe || 'Ingen klasse'})</span>
+            </div>
+        `).join('');
+    } else {
+        elevListe.innerHTML = '<p class="hjelpetekst">Ingen elevar i dette faget enno</p>';
+    }
+
+    // Hent ALLE elevar
+    const alleElevar = await hentAlleElever();
+
+    // Filtrer vekk elevar som allereie er i faget
+    const eleverIkkjeIFag = alleElevar.filter(elev =>
+        !eleverIFag.some(e => e.elev_id === elev.elev_id)
+    );
+
+    // Populer dropdown med tilgjengelege elevar
+    elevVelg.innerHTML = '';
+    if (eleverIkkjeIFag.length > 0) {
+        eleverIkkjeIFag.forEach(elev => {
+            const option = document.createElement('option');
+            option.value = elev.elev_id;
+            option.textContent = `${elev.fornavn} ${elev.etternavn} (${elev.faggruppe || 'Ingen klasse'})`;
+            elevVelg.appendChild(option);
+        });
+    } else {
+        const option = document.createElement('option');
+        option.textContent = 'Alle elevar er allereie i faget';
+        option.disabled = true;
+        elevVelg.appendChild(option);
+    }
+}
+
+async function leggTilElevarTilFag() {
+    const fag = document.getElementById('admin-fag-velg').value;
+    const elevVelg = document.getElementById('admin-elev-velg');
+    const valgteElevIds = Array.from(elevVelg.selectedOptions).map(opt => opt.value);
+
+    if (!fag || valgteElevIds.length === 0) {
+        visToast('Vel minst ein elev', 'warning');
+        return;
+    }
+
+    const transaction = db.transaction(['elever'], 'readwrite');
+    const store = transaction.objectStore('elever');
+
+    let oppdatert = 0;
+
+    for (const elevId of valgteElevIds) {
+        const request = store.get(elevId);
+
+        await new Promise((resolve) => {
+            request.onsuccess = async () => {
+                const elev = request.result;
+                if (elev) {
+                    elev.fag = fag;
+                    await store.put(elev);
+                    oppdatert++;
+                }
+                resolve();
+            };
+        });
+    }
+
+    visToast(`${oppdatert} elevar lagt til i ${fag}!`, 'success');
+    await visElevarForFag(fag);
+}
+
+async function fjernElevarFraFag() {
+    const fag = document.getElementById('admin-fag-velg').value;
+
+    if (!fag) {
+        visToast('Vel eit fag først', 'warning');
+        return;
+    }
+
+    const eleverIFag = await hentEleverIFag(fag);
+
+    if (eleverIFag.length === 0) {
+        visToast('Ingen elevar å fjerne', 'warning');
+        return;
+    }
+
+    const bekreft = confirm(`Vil du fjerne alle ${eleverIFag.length} elevar frå ${fag}?`);
+    if (!bekreft) return;
+
+    const transaction = db.transaction(['elever'], 'readwrite');
+    const store = transaction.objectStore('elever');
+
+    let fjerna = 0;
+
+    for (const elev of eleverIFag) {
+        const request = store.get(elev.elev_id);
+
+        await new Promise((resolve) => {
+            request.onsuccess = async () => {
+                const elevData = request.result;
+                if (elevData) {
+                    elevData.fag = '';
+                    await store.put(elevData);
+                    fjerna++;
+                }
+                resolve();
+            };
+        });
+    }
+
+    visToast(`${fjerna} elevar fjerna frå ${fag}!`, 'success');
+    await visElevarForFag(fag);
 }
 
 async function lagreGjeldendeSkoleaar() {
