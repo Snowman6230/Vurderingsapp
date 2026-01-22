@@ -362,6 +362,35 @@
                         </div>
                     </div>
 
+                    <!-- Elevar per fag -->
+                    <div class="innstilling-gruppe">
+                        <h3>👥 Elevar per fag</h3>
+                        <p class="hjelpetekst">Her kan du knytte elevar til fag. Vel eit fag og deretter elevar som skal tilhøyre det faget.</p>
+
+                        <div style="margin-top: 1rem;">
+                            <label style="font-weight: 500; display: block; margin-bottom: 0.5rem;">Vel fag:</label>
+                            <select id="admin-fag-velg" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 1rem;">
+                                <option value="">-- Vel fag --</option>
+                            </select>
+                        </div>
+
+                        <div id="admin-elevar-for-fag" style="display: none;">
+                            <h4>Elevar i dette faget:</h4>
+                            <div id="admin-elevar-liste" style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 0.5rem; margin-bottom: 1rem;">
+                            </div>
+
+                            <h4>Legg til elevar:</h4>
+                            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                                <select id="admin-elev-velg" multiple style="flex: 1; min-height: 150px; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px;">
+                                </select>
+                                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                    <button id="admin-legg-til-elevar-btn" class="btn-success">→ Legg til</button>
+                                    <button id="admin-fjern-elevar-btn" class="btn-danger">← Fjern</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Læreplanadministrasjon -->
                     <div class="innstilling-gruppe lp-admin">
                         <h3>📋 Læreplanar</h3>
