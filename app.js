@@ -3,7 +3,7 @@
 
 // Database konfigurasjon
 const DB_NAME = 'VurderingsappDB';
-const DB_VERSION = 6; // Oppdatert til v6 (fornavn/etternavn konsistens fiksa)
+const DB_VERSION = 7; // Oppdatert til v7 (migrer fornamn/etternamn → fornavn/etternavn)
 let db;
 
 
@@ -641,6 +641,18 @@ async function migrerEksisterandeData() {
 
             for (const elev of elever) {
                 let endret = false;
+
+                // Migrer frå nynorsk til bokmål namnefeltar
+                if (elev.fornamn !== undefined && elev.fornavn === undefined) {
+                    elev.fornavn = elev.fornamn;
+                    endret = true;
+                    console.log(`✅ Migrerte fornamn → fornavn for ${elev.fornamn}`);
+                }
+                if (elev.etternamn !== undefined && elev.etternavn === undefined) {
+                    elev.etternavn = elev.etternamn;
+                    endret = true;
+                    console.log(`✅ Migrerte etternamn → etternavn for ${elev.etternamn}`);
+                }
 
                 // Sjekk om fornavn startar med klassenamn-mønster (t.d. 1ST1, 2NA3, 3KR1)
                 // Mønster: siffer + 1-4 bokstavar + valfritt siffer + mellomrom

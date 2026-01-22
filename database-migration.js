@@ -1,8 +1,8 @@
 // Database Migration Script for Vurderingsapp v3.0.4
-// Migrerer frå v3/v4/v5 til v6 (fornavn/etternavn konsistens)
+// Migrerer frå v3/v4/v5/v6 til v7 (fornamn/etternamn → fornavn/etternavn)
 // © Alpindata
 
-const NEW_DB_VERSION = 6;
+const NEW_DB_VERSION = 7;
 
 /**
  * Migrer database frå versjon 3/4 til versjon 5
@@ -38,6 +38,11 @@ async function migrerDatabase() {
             // Migrer frå v5 til v6
             if (oldVersion < 6) {
                 migrerTilV6(db, transaction);
+            }
+
+            // Migrer frå v6 til v7
+            if (oldVersion < 7) {
+                migrerTilV7(db, transaction);
             }
         };
     });
@@ -192,6 +197,11 @@ function migrerTilV6(db, transaction) {
     }
 
     console.log('✓ V6-migrering fullført');
+}
+
+function migrerTilV7(db, transaction) {
+    console.log('Migrerer til versjon 7: Datamigrasjon frå fornamn/etternamn til fornavn/etternavn');
+    console.log('✓ V7-migrering fullført (datamigrering skjer i app.js:migrerEksisterandeData)');
 }
 
 function migrerKlasseTilFaggruppe(objectStore) {
