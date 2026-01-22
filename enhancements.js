@@ -1059,4 +1059,7 @@ window.oppdaterFagoversikt = oppdaterFagoversikt;
 window.visFagDetaljar = visFagDetaljar;
 window.visManuellElevDialog = visManuellElevDialog;
 window.visVismaPDFDialog = visVismaPDFDialog;
+window.hentFagIdFraNamn = hentFagIdFraNamn;
+window.openDatabaseEnhancements = openDatabaseEnhancements;
+window.fjernLæreplanFråFag = fjernLæreplanFråFag;
 // hentElevarIFag eksportert frå elevadministrasjon.js

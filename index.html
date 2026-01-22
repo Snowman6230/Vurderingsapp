@@ -428,7 +428,35 @@
                                 <p class="hjelpetekst">Ingen aktive koplingar enno</p>
                             </div>
                         </div>
-                        
+
+                        <!-- Læreplan og verb per fag -->
+                        <div style="background: #f0f0ff; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                            <h4 style="margin-top: 0; margin-bottom: 1rem;">📚 Læreplan og verb</h4>
+                            <p class="hjelpetekst">Last opp læreplan (DOCX) for å aktivere faget og ekstrahere verb automatisk.</p>
+
+                            <div style="margin-top: 1rem;">
+                                <label style="font-weight: 500; display: block; margin-bottom: 0.5rem;">Vel fag:</label>
+                                <select id="lp-fag-velg" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 1rem;">
+                                    <option value="">-- Vel fag --</option>
+                                </select>
+                            </div>
+
+                            <div id="lp-fag-info" style="display: none;">
+                                <!-- Læreplanstatus -->
+                                <div id="lp-fag-status" style="margin-bottom: 1rem;">
+                                    <!-- Blir fylt dynamisk -->
+                                </div>
+
+                                <!-- Handlingar -->
+                                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                    <button id="lp-fag-last-opp-btn" class="btn-success">📄 Last opp læreplan (DOCX)</button>
+                                    <button id="lp-fag-verbbibliotek-btn" class="btn-secondary">📖 Verbbibliotek</button>
+                                    <button id="lp-fag-fjern-btn" class="btn-danger" style="display: none;">🗑️ Fjern læreplan</button>
+                                </div>
+                                <input type="file" id="lp-fag-fil-input" accept=".docx" style="display: none;">
+                            </div>
+                        </div>
+
                         <!-- Last opp læreplan -->
                         <div style="background: #f0f8f0; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
                             <h4 style="margin-top: 0; margin-bottom: 0.5rem;">📤 Last opp læreplan (PDF, DOCX eller JSON)</h4>
