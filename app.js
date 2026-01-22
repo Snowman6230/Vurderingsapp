@@ -2298,6 +2298,55 @@ async function initElevarPerFagAdmin() {
             await fjernElevarFraFag();
         });
     }
+
+    // Event listeners for elevadministrasjon
+    const csvImportBtn = document.getElementById('admin-csv-import-btn');
+    if (csvImportBtn) {
+        csvImportBtn.addEventListener('click', () => {
+            const fag = adminFagVelg.value;
+            if (!fag) {
+                visToast('Vel eit fag først', 'warning');
+                return;
+            }
+            if (typeof visCSVImportDialog === 'function') {
+                visCSVImportDialog(fag);
+            } else {
+                console.error('visCSVImportDialog er ikkje definert');
+            }
+        });
+    }
+
+    const vismaPdfBtn = document.getElementById('admin-visma-pdf-btn');
+    if (vismaPdfBtn) {
+        vismaPdfBtn.addEventListener('click', () => {
+            const fag = adminFagVelg.value;
+            if (!fag) {
+                visToast('Vel eit fag først', 'warning');
+                return;
+            }
+            if (typeof visVismaPDFDialog === 'function') {
+                visVismaPDFDialog(fag);
+            } else {
+                console.error('visVismaPDFDialog er ikkje definert');
+            }
+        });
+    }
+
+    const manuellLeggTilBtn = document.getElementById('admin-manuell-legg-til-btn');
+    if (manuellLeggTilBtn) {
+        manuellLeggTilBtn.addEventListener('click', () => {
+            const fag = adminFagVelg.value;
+            if (!fag) {
+                visToast('Vel eit fag først', 'warning');
+                return;
+            }
+            if (typeof visManuellElevDialog === 'function') {
+                visManuellElevDialog(fag);
+            } else {
+                console.error('visManuellElevDialog er ikkje definert');
+            }
+        });
+    }
 }
 
 async function visElevarForFag(fag) {
