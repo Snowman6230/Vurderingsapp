@@ -377,8 +377,11 @@ async function leggTilElevManuelt(fag, fornamn, etternamn, faggruppe, basisgrupp
     // 3. Lagre elev
     const elevData = {
         elev_id: elevId,
+        // Set begge namneformat for konsistens (nynorsk og bokmål)
         fornamn,
         etternamn,
+        fornavn: fornamn,  // Bokmål
+        etternavn: etternamn,  // Bokmål
         fag,
         faggruppe,
         basisgruppe: basisgruppe || '',
