@@ -629,12 +629,16 @@ function visManuellElevDialog(fag) {
  * Vis dialog for opplasting av Visma PDF
  */
 async function visVismaPDFDialog(fag) {
+    // Fjern eksisterande modals for å unngå stacking
+    const eksisterandeModals = document.querySelectorAll('.modal');
+    eksisterandeModals.forEach(m => m.remove());
+
     const modal = document.createElement('div');
     modal.className = 'modal';
     modal.style.display = 'block';
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 900px;">
-            <span class="close">&times;</span>
+            <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
             <h2>📄 Last opp Visma PDF til ${fag}</h2>
 
             <div style="margin: 1.5rem 0;">
@@ -648,7 +652,7 @@ async function visVismaPDFDialog(fag) {
             <div id="visma-pdf-resultat" style="margin: 1.5rem 0; display: none;"></div>
 
             <div style="display: flex; gap: 1rem; justify-content: flex-end;">
-                <button id="visma-pdf-cancel-btn" class="btn-secondary">Avbryt</button>
+                <button id="visma-pdf-lukk-btn" class="btn-secondary" onclick="this.closest('.modal').remove()">Lukk</button>
                 <button id="visma-pdf-import-btn" class="btn-success" style="display: none;">✓ Lagre elevar</button>
             </div>
         </div>
@@ -658,15 +662,7 @@ async function visVismaPDFDialog(fag) {
 
     let parsedeElevar = [];
 
-    // Event listeners
-    modal.querySelector('.close').addEventListener('click', () => {
-        document.body.removeChild(modal);
-    });
-
-    modal.querySelector('#visma-pdf-cancel-btn').addEventListener('click', () => {
-        document.body.removeChild(modal);
-    });
-
+    // Parse-knapp event listener
     modal.querySelector('#visma-pdf-parse-btn').addEventListener('click', async () => {
         const fileInput = modal.querySelector('#visma-pdf-input');
         const file = fileInput.files[0];
@@ -714,12 +710,7 @@ async function visVismaPDFDialog(fag) {
         console.log(`✓ Lagra ${lagra} av ${parsedeElevar.length} elevar til database`);
         showConfirmation(`Lagra ${lagra} av ${parsedeElevar.length} elevar`, 'success');
 
-        // Endre "Avbryt" til "Lukk" når import er ferdig
-        const cancelBtn = modal.querySelector('#visma-pdf-cancel-btn');
-        cancelBtn.textContent = 'Lukk';
-        cancelBtn.className = 'btn-primary';
-
-        // Skjul import-knappen
+        // Skjul import-knappen når import er ferdig
         modal.querySelector('#visma-pdf-import-btn').style.display = 'none';
 
         // Oppdater fagoversikt og last klassar på nytt
