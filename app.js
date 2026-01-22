@@ -5334,6 +5334,19 @@ async function hentAlleVurderingar() {
 
 // ============ INITIALISERING ============
 
+// Eksporter funksjoner til globalt scope for onclick-attributtar
+window.fjernFag = fjernFag;
+window.leggTilFag = leggTilFag;
+window.visLastOppBileteDialog = visLastOppBileteDialog;
+window.lagreHurtigvurdering = lagreHurtigvurdering;
+window.toggleFag = toggleFag;
+window.genererFagoppsummering = genererFagoppsummering;
+window.nyVurderingForElevFag = nyVurderingForElevFag;
+window.toggleDetaljer = toggleDetaljer;
+window.redigerVurdering = redigerVurdering;
+window.kopierOppsummering = kopierOppsummering;
+window.lagreRedigertVurdering = lagreRedigertVurdering;
+
 // App initialisert via DOMContentLoaded i andre modular
 console.log('Vurderingsapp v3 - Hovudmodul lasta');
 
