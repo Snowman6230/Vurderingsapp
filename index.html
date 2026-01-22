@@ -429,34 +429,6 @@
                             </div>
                         </div>
 
-                        <!-- Læreplan og verb per fag -->
-                        <div style="background: #f0f0ff; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
-                            <h4 style="margin-top: 0; margin-bottom: 1rem;">📚 Læreplan og verb</h4>
-                            <p class="hjelpetekst">Last opp læreplan (DOCX) for å aktivere faget og ekstrahere verb automatisk.</p>
-
-                            <div style="margin-top: 1rem;">
-                                <label style="font-weight: 500; display: block; margin-bottom: 0.5rem;">Vel fag:</label>
-                                <select id="lp-fag-velg" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 1rem;">
-                                    <option value="">-- Vel fag --</option>
-                                </select>
-                            </div>
-
-                            <div id="lp-fag-info" style="display: none;">
-                                <!-- Læreplanstatus -->
-                                <div id="lp-fag-status" style="margin-bottom: 1rem;">
-                                    <!-- Blir fylt dynamisk -->
-                                </div>
-
-                                <!-- Handlingar -->
-                                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                                    <button id="lp-fag-last-opp-btn" class="btn-success">📄 Last opp læreplan (DOCX)</button>
-                                    <button id="lp-fag-verbbibliotek-btn" class="btn-secondary">📖 Verbbibliotek</button>
-                                    <button id="lp-fag-fjern-btn" class="btn-danger" style="display: none;">🗑️ Fjern læreplan</button>
-                                </div>
-                                <input type="file" id="lp-fag-fil-input" accept=".docx" style="display: none;">
-                            </div>
-                        </div>
-
                         <!-- Last opp læreplan -->
                         <div style="background: #f0f8f0; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
                             <h4 style="margin-top: 0; margin-bottom: 0.5rem;">📤 Last opp læreplan (PDF, DOCX eller JSON)</h4>
@@ -464,6 +436,61 @@
                             <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
                                 <input type="file" id="lp-upload" accept=".pdf,.docx,.json" style="flex: 1;">
                                 <button id="lp-parse-btn" class="btn-primary">🔍 Læreplan-analyse</button>
+                            </div>
+                        </div>
+
+                        <!-- Detaljar per fag -->
+                        <div style="background: #f0f0ff; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                            <h4 style="margin-top: 0; margin-bottom: 0.5rem;">📚 Detaljar per fag</h4>
+                            <p class="hjelpetekst">Sjå kompetansemål, grunnferdigheiter og verb for eit fag. Vel eit fag som har læreplan kopla.</p>
+
+                            <div style="margin-top: 1rem;">
+                                <label style="font-weight: 500; display: block; margin-bottom: 0.5rem;">Vel fag:</label>
+                                <select id="lp-detaljar-fag-velg" style="width: 100%; padding: 0.5rem; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 1rem;">
+                                    <option value="">-- Vel fag --</option>
+                                </select>
+                            </div>
+
+                            <div id="lp-detaljar-innhold" style="display: none;">
+                                <!-- Status -->
+                                <div id="lp-detaljar-status" style="margin-bottom: 1rem;">
+                                    <!-- Blir fylt dynamisk -->
+                                </div>
+
+                                <!-- Kompetansemål -->
+                                <details style="margin-bottom: 0.75rem;" open>
+                                    <summary style="cursor: pointer; font-weight: 600; padding: 0.5rem; background: #e8f4ff; border-radius: 4px;">
+                                        🎯 Kompetansemål (<span id="lp-detaljar-km-tal">0</span>)
+                                    </summary>
+                                    <div id="lp-detaljar-kompetansemaal" style="margin-top: 0.5rem; padding: 0.5rem; max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; background: white;">
+                                        <!-- Blir fylt dynamisk -->
+                                    </div>
+                                </details>
+
+                                <!-- Grunnferdigheiter -->
+                                <details style="margin-bottom: 0.75rem;">
+                                    <summary style="cursor: pointer; font-weight: 600; padding: 0.5rem; background: #e8f4ff; border-radius: 4px;">
+                                        ⚡ Grunnleggjande ferdigheiter (<span id="lp-detaljar-gf-tal">0</span>)
+                                    </summary>
+                                    <div id="lp-detaljar-grunnferdigheiter" style="margin-top: 0.5rem; padding: 0.5rem; max-height: 200px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; background: white;">
+                                        <!-- Blir fylt dynamisk -->
+                                    </div>
+                                </details>
+
+                                <!-- Verb fra læreplan -->
+                                <details style="margin-bottom: 0.75rem;">
+                                    <summary style="cursor: pointer; font-weight: 600; padding: 0.5rem; background: #e8f4ff; border-radius: 4px;">
+                                        📖 Verb i læreplanen (<span id="lp-detaljar-verb-tal">0</span>)
+                                    </summary>
+                                    <div id="lp-detaljar-verb" style="margin-top: 0.5rem; padding: 0.5rem; max-height: 300px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; background: white;">
+                                        <!-- Blir fylt dynamisk -->
+                                    </div>
+                                </details>
+
+                                <!-- Handlingar -->
+                                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem;">
+                                    <button id="lp-detaljar-fjern-kopling-btn" class="btn-danger">✕ Fjern kopling</button>
+                                </div>
                             </div>
                         </div>
 

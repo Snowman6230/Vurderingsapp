@@ -3461,6 +3461,16 @@ async function hentAlleLaereplaner() {
     });
 }
 
+async function hentLaereplan(id) {
+    const tx = db.transaction(['laereplaner'], 'readonly');
+    const store = tx.objectStore('laereplaner');
+    const req = store.get(id);
+    return new Promise((resolve) => {
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+    });
+}
+
 async function lagreLaereplan(plan) {
     const tx = db.transaction(['laereplaner'], 'readwrite');
     tx.objectStore('laereplaner').put(plan);
@@ -3854,29 +3864,39 @@ async function initLaereplanUI() {
 
     await renderLP();
 
-    // Initialiser "Læreplan og verb per fag"-seksjon
-    await initLaereplanOgVerbPerFag();
+    // Initialiser "Detaljar per fag"-seksjon
+    await initLaereplanDetaljar();
 }
 
-// Initialiser "Læreplan og verb per fag"-seksjon
-async function initLaereplanOgVerbPerFag() {
-    const fagVelg = document.getElementById('lp-fag-velg');
-    const fagInfo = document.getElementById('lp-fag-info');
-    const fagStatus = document.getElementById('lp-fag-status');
-    const lastOppBtn = document.getElementById('lp-fag-last-opp-btn');
-    const verbbibliotekBtn = document.getElementById('lp-fag-verbbibliotek-btn');
-    const fjernBtn = document.getElementById('lp-fag-fjern-btn');
-    const filInput = document.getElementById('lp-fag-fil-input');
+// Initialiser "Detaljar per fag"-seksjon
+async function initLaereplanDetaljar() {
+    const fagVelg = document.getElementById('lp-detaljar-fag-velg');
+    const innhold = document.getElementById('lp-detaljar-innhold');
+    const status = document.getElementById('lp-detaljar-status');
+    const kmDiv = document.getElementById('lp-detaljar-kompetansemaal');
+    const gfDiv = document.getElementById('lp-detaljar-grunnferdigheiter');
+    const verbDiv = document.getElementById('lp-detaljar-verb');
+    const kmTal = document.getElementById('lp-detaljar-km-tal');
+    const gfTal = document.getElementById('lp-detaljar-gf-tal');
+    const verbTal = document.getElementById('lp-detaljar-verb-tal');
+    const fjernKoplingBtn = document.getElementById('lp-detaljar-fjern-kopling-btn');
 
     if (!fagVelg) return;
 
-    // Populer fag-dropdown
+    const innstillinger = await hentInnstillinger();
+    innstillinger.fagTilLaereplan = innstillinger.fagTilLaereplan || {};
+
+    // Populer fag-dropdown (berre fag med læreplan)
     const fagliste = await hentFagNamn();
     fagVelg.innerHTML = '<option value="">-- Vel fag --</option>';
     fagliste.forEach(f => {
         const opt = document.createElement('option');
         opt.value = f;
         opt.textContent = f;
+        // Vis om faget har læreplan
+        if (innstillinger.fagTilLaereplan[f]) {
+            opt.textContent += ' ✓';
+        }
         fagVelg.appendChild(opt);
     });
 
@@ -3884,159 +3904,139 @@ async function initLaereplanOgVerbPerFag() {
     fagVelg.addEventListener('change', async () => {
         const fag = fagVelg.value;
         if (!fag) {
-            fagInfo.style.display = 'none';
+            innhold.style.display = 'none';
             return;
         }
 
-        // Hent fagId og fagdata
-        const fagId = await hentFagIdFraNamn(fag);
-        if (!fagId) {
-            console.error(`Kunne ikkje finne fagId for ${fag}`);
-            return;
-        }
-
-        // Hent fag-data
-        const db = await openDatabaseEnhancements();
-        const fagData = await new Promise((resolve) => {
-            const transaction = db.transaction(['fag'], 'readonly');
-            const fagStore = transaction.objectStore('fag');
-            const request = fagStore.get(fagId);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => resolve(null);
-        });
-
-        const harLæreplan = fagData && fagData.læreplanKopla;
-
-        // Vis info
-        fagInfo.style.display = 'block';
-
-        // Oppdater status
-        if (harLæreplan) {
-            fagStatus.innerHTML = `
-                <div style="background: #e8f5e9; padding: 1rem; border-radius: 6px;">
-                    <p style="margin: 0; color: #2e7d32; font-weight: 500;">
-                        ✓ Læreplan lasta opp: ${fagData.verbFraaLæreplan?.length || 0} verb ekstrabert
-                    </p>
-                </div>
-            `;
-            fjernBtn.style.display = 'inline-block';
-            lastOppBtn.textContent = '📄 Erstatt læreplan (DOCX)';
-        } else {
-            fagStatus.innerHTML = `
+        // Sjekk om faget har læreplan kopla
+        const lpId = innstillinger.fagTilLaereplan[fag];
+        if (!lpId) {
+            status.innerHTML = `
                 <div style="background: #fff3cd; padding: 1rem; border-radius: 6px;">
                     <p style="margin: 0; color: #856404;">
-                        ⚠ Ingen læreplan lasta opp enno
+                        ⚠ Dette faget har ingen læreplan kopla. Gå til "Kople læreplan til fag" for å kople ein læreplan.
                     </p>
                 </div>
             `;
-            fjernBtn.style.display = 'none';
-            lastOppBtn.textContent = '📄 Last opp læreplan (DOCX)';
+            innhold.style.display = 'block';
+            kmDiv.innerHTML = '<p class="hjelpetekst">Ingen læreplan kopla</p>';
+            gfDiv.innerHTML = '<p class="hjelpetekst">Ingen læreplan kopla</p>';
+            verbDiv.innerHTML = '<p class="hjelpetekst">Ingen læreplan kopla</p>';
+            kmTal.textContent = '0';
+            gfTal.textContent = '0';
+            verbTal.textContent = '0';
+            return;
         }
+
+        // Hent læreplanen
+        const læreplan = await hentLaereplan(lpId);
+        if (!læreplan) {
+            status.innerHTML = `
+                <div style="background: #f8d7da; padding: 1rem; border-radius: 6px;">
+                    <p style="margin: 0; color: #721c24;">
+                        ✗ Kunne ikkje finne læreplanen
+                    </p>
+                </div>
+            `;
+            innhold.style.display = 'block';
+            return;
+        }
+
+        // Vis status
+        const lpNamn = læreplan.kode ? `${læreplan.kode} – ${læreplan.tittel}` : læreplan.tittel;
+        status.innerHTML = `
+            <div style="background: #e8f5e9; padding: 1rem; border-radius: 6px;">
+                <p style="margin: 0; color: #2e7d32; font-weight: 500;">
+                    ✓ Kopla til: ${lpNamn}
+                </p>
+            </div>
+        `;
+
+        // Vis kompetansemål
+        const kompetansemaal = læreplan.kompetansemaal || [];
+        kmTal.textContent = kompetansemaal.length;
+        if (kompetansemaal.length > 0) {
+            kmDiv.innerHTML = kompetansemaal.map((km, i) => `
+                <div style="margin-bottom: 0.5rem; padding: 0.5rem; background: #f8f9fa; border-left: 3px solid #3498db; border-radius: 3px;">
+                    <strong>${i + 1}.</strong> ${km}
+                </div>
+            `).join('');
+        } else {
+            kmDiv.innerHTML = '<p class="hjelpetekst">Ingen kompetansemål registrert</p>';
+        }
+
+        // Vis grunnferdigheiter
+        const grunnferdigheter = læreplan.grunnferdigheter || [];
+        gfTal.textContent = grunnferdigheter.length;
+        if (grunnferdigheter.length > 0) {
+            gfDiv.innerHTML = grunnferdigheter.map(gf => `
+                <div style="margin-bottom: 0.25rem; padding: 0.25rem 0.5rem; background: #f8f9fa; border-radius: 3px;">
+                    • ${gf}
+                </div>
+            `).join('');
+        } else {
+            gfDiv.innerHTML = '<p class="hjelpetekst">Ingen grunnferdigheiter registrert</p>';
+        }
+
+        // Hent og vis verb frå kompetansemåla
+        const allVerb = new Set();
+        kompetansemaal.forEach(km => {
+            const verb = finnVerbaItekst(km);
+            verb.forEach(v => allVerb.add(v));
+        });
+        const verbArray = Array.from(allVerb).sort();
+        verbTal.textContent = verbArray.length;
+
+        if (verbArray.length > 0) {
+            verbDiv.innerHTML = verbArray.map(verb => {
+                const forklaring = VERB_ORDBOK[verb] || 'Ingen forklaring tilgjengeleg';
+                return `
+                    <div style="margin-bottom: 0.5rem; padding: 0.5rem; background: #f8f9fa; border-left: 3px solid #27ae60; border-radius: 3px;">
+                        <strong>${verb}</strong>: ${forklaring}
+                    </div>
+                `;
+            }).join('');
+        } else {
+            verbDiv.innerHTML = '<p class="hjelpetekst">Ingen verb funne i kompetansemåla</p>';
+        }
+
+        innhold.style.display = 'block';
     });
 
-    // Last opp læreplan
-    if (lastOppBtn && filInput) {
-        lastOppBtn.addEventListener('click', () => {
-            filInput.click();
-        });
-
-        filInput.addEventListener('change', async () => {
-            const file = filInput.files[0];
-            if (!file) return;
-
-            const fag = fagVelg.value;
-            if (!fag) {
-                visToast('Vel eit fag først', 'warning');
-                return;
-            }
-
-            const fagId = await hentFagIdFraNamn(fag);
-            if (!fagId) {
-                visToast('Kunne ikkje finne faget', 'error');
-                return;
-            }
-
-            try {
-                visToast('Analyserer læreplan...', 'info');
-
-                if (typeof lastOppLæreplan === 'function') {
-                    const resultat = await lastOppLæreplan(fagId, file);
-                    visToast(`Læreplan analysert! Fann ${resultat.verbtal} verb. Faget er no aktivt.`, 'success');
-
-                    // Oppdater visning
-                    fagVelg.dispatchEvent(new Event('change'));
-
-                    // Oppdater fagoversikt
-                    if (typeof oppdaterFagoversikt === 'function') {
-                        await oppdaterFagoversikt();
-                    }
-                } else {
-                    console.error('lastOppLæreplan er ikkje definert');
-                    visToast('Kunne ikkje laste opp læreplan', 'error');
-                }
-            } catch (error) {
-                visToast('Feil ved opplasting: ' + error.message, 'error');
-                console.error(error);
-            }
-
-            filInput.value = '';
-        });
-    }
-
-    // Vis verbbibliotek
-    if (verbbibliotekBtn) {
-        verbbibliotekBtn.addEventListener('click', async () => {
-            const fag = fagVelg.value;
-            if (!fag) {
-                visToast('Vel eit fag først', 'warning');
-                return;
-            }
-
-            const fagId = await hentFagIdFraNamn(fag);
-            if (!fagId) {
-                visToast('Kunne ikkje finne faget', 'error');
-                return;
-            }
-
-            if (typeof visVerbbibliotek === 'function') {
-                visVerbbibliotek(fagId, fag);
-            } else {
-                console.error('visVerbbibliotek er ikkje definert');
-            }
-        });
-    }
-
-    // Fjern læreplan
-    if (fjernBtn) {
-        fjernBtn.addEventListener('click', async () => {
+    // Fjern kopling
+    if (fjernKoplingBtn) {
+        fjernKoplingBtn.addEventListener('click', async () => {
             const fag = fagVelg.value;
             if (!fag) return;
 
-            const fagId = await hentFagIdFraNamn(fag);
-            if (!fagId) return;
-
-            if (!confirm(`Er du sikker på at du vil fjerne læreplanen frå ${fag}?\n\nDette vil slette alle verb og deaktivere faget.`)) {
+            if (!confirm(`Vil du fjerne læreplankoplinga for ${fag}?`)) {
                 return;
             }
 
-            try {
-                if (typeof fjernLæreplanFråFag === 'function') {
-                    await fjernLæreplanFråFag(fagId);
-                    visToast(`Læreplan fjerna frå ${fag}`, 'success');
+            delete innstillinger.fagTilLaereplan[fag];
+            await lagreInnstilling('fagTilLaereplan', innstillinger.fagTilLaereplan);
+            visToast(`✓ Fjerna læreplan frå ${fag}`, 'success');
 
-                    // Oppdater visning
-                    fagVelg.dispatchEvent(new Event('change'));
+            // Oppdater visning
+            innhold.style.display = 'none';
+            fagVelg.value = '';
 
-                    // Oppdater fagoversikt
-                    if (typeof oppdaterFagoversikt === 'function') {
-                        await oppdaterFagoversikt();
-                    }
-                } else {
-                    console.error('fjernLæreplanFråFag er ikkje definert');
+            // Oppdater dropdown for å fjerne ✓
+            fagVelg.innerHTML = '<option value="">-- Vel fag --</option>';
+            const fagliste = await hentFagNamn();
+            fagliste.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f;
+                opt.textContent = f;
+                if (innstillinger.fagTilLaereplan[f]) {
+                    opt.textContent += ' ✓';
                 }
-            } catch (error) {
-                visToast('Feil ved fjerning av læreplan: ' + error.message, 'error');
-                console.error(error);
+                fagVelg.appendChild(opt);
+            });
+
+            // Oppdater koplingoversikt
+            if (typeof oppdaterKoplingOversikt === 'function') {
+                await oppdaterKoplingOversikt();
             }
         });
     }
