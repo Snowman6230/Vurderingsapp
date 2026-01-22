@@ -3,7 +3,7 @@
 
 // Database konfigurasjon
 const DB_NAME = 'VurderingsappDB';
-const DB_VERSION = 5; // Oppdatert til v5 (fag object store fiksa)
+const DB_VERSION = 6; // Oppdatert til v6 (fornavn/etternavn konsistens fiksa)
 let db;
 
 
@@ -560,6 +560,10 @@ async function initDB() {
                 console.log('Opprettar object store: elever');
                 const elevStore = db.createObjectStore('elever', { keyPath: 'elev_id' });
                 elevStore.createIndex('klasse', 'klasse', { unique: false });
+                elevStore.createIndex('faggruppe', 'faggruppe', { unique: false });
+                elevStore.createIndex('fornavn', 'fornavn', { unique: false });
+                elevStore.createIndex('etternavn', 'etternavn', { unique: false });
+                elevStore.createIndex('fag', 'fag', { unique: false });
             }
             
             if (!db.objectStoreNames.contains('vurderinger')) {
@@ -625,8 +629,8 @@ async function migrerEksisterandeData() {
 
             if (elever.length > 0) {
                 console.log('📋 Første elev:', elever[0]);
-                console.log('fornamn:', elever[0].fornamn);
-                console.log('etternamn:', elever[0].etternamn);
+                console.log('fornavn:', elever[0].fornavn);
+                console.log('etternavn:', elever[0].etternavn);
                 console.log('fag:', elever[0].fag);
                 console.log('klasse:', elever[0].klasse);
                 console.log('faggruppe:', elever[0].faggruppe);
@@ -638,16 +642,16 @@ async function migrerEksisterandeData() {
             for (const elev of elever) {
                 let endret = false;
 
-                // Sjekk om fornamn startar med klassenamn-mønster (t.d. 1ST1, 2NA3, 3KR1)
+                // Sjekk om fornavn startar med klassenamn-mønster (t.d. 1ST1, 2NA3, 3KR1)
                 // Mønster: siffer + 1-4 bokstavar + valfritt siffer + mellomrom
-                const klassenavnMatch = elev.fornamn?.match(/^(\d[A-ZÆØÅ]{1,4}\d?)\s+(.+)$/);
+                const klassenavnMatch = elev.fornavn?.match(/^(\d[A-ZÆØÅ]{1,4}\d?)\s+(.+)$/);
 
                 if (klassenavnMatch && (!elev.faggruppe || elev.faggruppe === '')) {
                     const klassenamn = klassenavnMatch[1];
-                    const reeltFornamn = klassenavnMatch[2];
+                    const reeltFornavn = klassenavnMatch[2];
 
                     elev.faggruppe = klassenamn;
-                    elev.fornamn = reeltFornamn;
+                    elev.fornavn = reeltFornavn;
 
                     // Set også klasse-felt for bakoverkompatibilitet
                     if (!elev.klasse) {
@@ -655,14 +659,14 @@ async function migrerEksisterandeData() {
                     }
 
                     endret = true;
-                    console.log(`✅ Ekstraherte faggruppe "${klassenamn}" frå fornamn: ${elev.fornamn}`);
+                    console.log(`✅ Ekstraherte faggruppe "${klassenamn}" frå fornavn: ${elev.fornavn}`);
                 }
 
                 // Migrer klasse til faggruppe om nødvendig
                 if (elev.klasse && (!elev.faggruppe || elev.faggruppe === '')) {
                     elev.faggruppe = elev.klasse;
                     endret = true;
-                    console.log(`✅ Migrerte klasse "${elev.klasse}" til faggruppe for ${elev.fornamn}`);
+                    console.log(`✅ Migrerte klasse "${elev.klasse}" til faggruppe for ${elev.fornavn}`);
                 }
 
                 // Sjekk om faggruppe manglar

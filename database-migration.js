@@ -1,8 +1,8 @@
 // Database Migration Script for Vurderingsapp v3.0.4
-// Migrerer frå v3/v4 til v5 (legg til fag object store)
+// Migrerer frå v3/v4/v5 til v6 (fornavn/etternavn konsistens)
 // © Alpindata
 
-const NEW_DB_VERSION = 5;
+const NEW_DB_VERSION = 6;
 
 /**
  * Migrer database frå versjon 3/4 til versjon 5
@@ -33,6 +33,11 @@ async function migrerDatabase() {
             // Migrer frå v4 til v5
             if (oldVersion < 5) {
                 migrerTilV5(db, transaction);
+            }
+
+            // Migrer frå v5 til v6
+            if (oldVersion < 6) {
+                migrerTilV6(db, transaction);
             }
         };
     });
@@ -166,6 +171,27 @@ function migrerTilV5(db, transaction) {
     } else {
         console.log('✓ Fag object store eksisterer allereie');
     }
+}
+
+function migrerTilV6(db, transaction) {
+    console.log('Migrerer til versjon 6: Sikrar fornavn/etternavn indices');
+
+    // Legg til fornavn/etternavn indices om dei manglar
+    if (db.objectStoreNames.contains('elever')) {
+        const elevStore = transaction.objectStore('elever');
+
+        if (!elevStore.indexNames.contains('fornavn')) {
+            elevStore.createIndex('fornavn', 'fornavn', { unique: false });
+            console.log('✓ Fornavn index lagt til elever');
+        }
+
+        if (!elevStore.indexNames.contains('etternavn')) {
+            elevStore.createIndex('etternavn', 'etternavn', { unique: false });
+            console.log('✓ Etternavn index lagt til elever');
+        }
+    }
+
+    console.log('✓ V6-migrering fullført');
 }
 
 function migrerKlasseTilFaggruppe(objectStore) {
