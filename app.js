@@ -816,11 +816,11 @@ function setupEventListeners() {
     });
     
     // Hurtigmodus
-    const hurtigFaggruppe = document.getElementById('hurtig-faggruppe');
-    if (hurtigFaggruppe) {
-        hurtigFaggruppe.addEventListener('change', (e) => {
-            sisteValgteFaggruppe = e.target.value;
-            visEleverIHurtigmodus(e.target.value);
+    const hurtigFag = document.getElementById('hurtig-fag');
+    if (hurtigFag) {
+        hurtigFag.addEventListener('change', (e) => {
+            sisteValgteFag = e.target.value;
+            visEleverIFag(e.target.value);
         });
     }
 
@@ -997,27 +997,59 @@ function visView(view) {
 
 // Hurtigmodus funksjoner
 async function visHurtigmodus() {
-    if (sisteValgteFaggruppe) {
-        document.getElementById('hurtig-faggruppe').value = sisteValgteFaggruppe;
-        visEleverIHurtigmodus(sisteValgteFaggruppe);
+    // Populer fag-dropdown
+    await populerFagDropdown();
+
+    if (sisteValgteFag) {
+        const hurtigFag = document.getElementById('hurtig-fag');
+        if (hurtigFag) {
+            hurtigFag.value = sisteValgteFag;
+            visEleverIFag(sisteValgteFag);
+        }
     }
 }
 
+async function populerFagDropdown() {
+    const fagNamn = await hentFagNamn();
+    const hurtigFag = document.getElementById('hurtig-fag');
+
+    if (!hurtigFag) return;
+
+    const currentValue = hurtigFag.value;
+    hurtigFag.innerHTML = '<option value="">-- Vel fag --</option>';
+
+    fagNamn.forEach(fag => {
+        const option = document.createElement('option');
+        option.value = fag;
+        option.textContent = fag;
+        hurtigFag.appendChild(option);
+    });
+
+    if (currentValue) {
+        hurtigFag.value = currentValue;
+    }
+}
+
+// Alias for bakoverkompatibilitet
 async function visEleverIHurtigmodus(klasse) {
+    return await visEleverIFag(klasse);
+}
+
+async function visEleverIFag(fag) {
     const elevListe = document.getElementById('hurtig-elevliste');
-    
-    if (!klasse) {
-        elevListe.innerHTML = '<p>Velg en klasse først</p>';
+
+    if (!fag) {
+        elevListe.innerHTML = '<p>Velg eit fag først</p>';
         return;
     }
-    
-    const elever = await hentEleverIKlasse(klasse);
-    
+
+    const elever = await hentEleverIFag(fag);
+
     if (elever.length === 0) {
-        elevListe.innerHTML = '<p>Ingen elever i denne klassen</p>';
+        elevListe.innerHTML = '<p>Ingen elevar i dette faget</p>';
         return;
     }
-    
+
     elevListe.innerHTML = '';
     elever.forEach((elev, index) => {
         const elevDiv = document.createElement('div');
@@ -2471,11 +2503,28 @@ async function hentEleverIKlasse(klasse) {
     const store = transaction.objectStore('elever');
     const index = store.index('faggruppe');
     const request = index.getAll(klasse);
-    
+
     return new Promise((resolve) => {
         request.onsuccess = () => {
             const elever = request.result;
-            elever.sort((a, b) => 
+            elever.sort((a, b) =>
+                `${a.etternavn} ${a.fornavn}`.localeCompare(`${b.etternavn} ${b.fornavn}`)
+            );
+            resolve(elever);
+        };
+    });
+}
+
+async function hentEleverIFag(fag) {
+    const transaction = db.transaction(['elever'], 'readonly');
+    const store = transaction.objectStore('elever');
+    const index = store.index('fag');
+    const request = index.getAll(fag);
+
+    return new Promise((resolve) => {
+        request.onsuccess = () => {
+            const elever = request.result;
+            elever.sort((a, b) =>
                 `${a.etternavn} ${a.fornavn}`.localeCompare(`${b.etternavn} ${b.fornavn}`)
             );
             resolve(elever);
