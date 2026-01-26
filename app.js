@@ -1117,11 +1117,8 @@ async function visEleverIFag(fag) {
         };
     }));
 
-    // Sorter: dei som treng vurdering først
+    // Sorter alfabetisk
     eleverMedVurdering.sort((a, b) => {
-        if (a.trengerVurdering !== b.trengerVurdering) {
-            return a.trengerVurdering ? -1 : 1;
-        }
         return `${a.fornavn} ${a.etternavn}`.localeCompare(`${b.fornavn} ${b.etternavn}`);
     });
 
@@ -1554,11 +1551,8 @@ async function visEleverIElevoversikt(fag) {
         };
     }));
 
-    // Sorter: dei som treng vurdering først, deretter alfabetisk
+    // Sorter alfabetisk
     elevMedSistVurdert.sort((a, b) => {
-        if (a.trengerVurdering !== b.trengerVurdering) {
-            return a.trengerVurdering ? -1 : 1;
-        }
         return `${a.fornavn} ${a.etternavn}`.localeCompare(`${b.fornavn} ${b.etternavn}`);
     });
 
