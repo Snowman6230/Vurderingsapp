@@ -167,15 +167,18 @@ nav {
 .elev-liste {
     max-height: 500px;
     overflow-y: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
 }
 
 .elev-item {
     padding: 0.75rem;
     border: 1px solid #ddd;
-    margin-bottom: 0.5rem;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s;
+    background: white;
 }
 
 .elev-item:hover {
@@ -191,6 +194,25 @@ nav {
 
 .elev-item.neste {
     border: 2px dashed var(--secondary);
+}
+
+.elev-item.fersk-vurdering {
+    border-left: 4px solid #27ae60;
+}
+
+.elev-item.trenger-vurdering {
+    border-left: 4px solid #e74c3c;
+    background: #fff5f5;
+}
+
+.elev-item.trenger-vurdering:hover {
+    background: #ffe5e5;
+}
+
+.elev-item.valgt.trenger-vurdering,
+.elev-item.valgt.fersk-vurdering {
+    background: var(--secondary);
+    border-left-color: var(--secondary);
 }
 
 .elev-item-content {

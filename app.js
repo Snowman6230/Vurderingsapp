@@ -1091,10 +1091,52 @@ async function visEleverIFag(fag) {
         return;
     }
 
+    const innstillinger = await hentInnstillinger();
+    const varseldagar = innstillinger.varseldagar || 14;
+    const iDag = new Date();
+
+    // Hent sist vurderingsdato for kvar elev
+    const eleverMedVurdering = await Promise.all(elever.map(async (elev) => {
+        const vurderinger = await hentElevVurderinger(elev.elev_id);
+        const fagVurderinger = vurderinger.filter(v => v.fag === fag);
+
+        let sistVurdert = null;
+        if (fagVurderinger.length > 0) {
+            fagVurderinger.sort((a, b) => new Date(b.dato) - new Date(a.dato));
+            sistVurdert = new Date(fagVurderinger[0].dato);
+        }
+
+        const dagarSidan = sistVurdert ? Math.floor((iDag - sistVurdert) / (1000 * 60 * 60 * 24)) : null;
+        const trengerVurdering = dagarSidan === null || dagarSidan > varseldagar;
+
+        return {
+            ...elev,
+            sistVurdert,
+            dagarSidan,
+            trengerVurdering
+        };
+    }));
+
+    // Sorter: dei som treng vurdering først
+    eleverMedVurdering.sort((a, b) => {
+        if (a.trengerVurdering !== b.trengerVurdering) {
+            return a.trengerVurdering ? -1 : 1;
+        }
+        return `${a.fornavn} ${a.etternavn}`.localeCompare(`${b.fornavn} ${b.etternavn}`);
+    });
+
     elevListe.innerHTML = '';
-    elever.forEach((elev, index) => {
+    eleverMedVurdering.forEach((elev, index) => {
         const elevDiv = document.createElement('div');
         elevDiv.className = 'elev-item';
+        elevDiv.dataset.elevId = elev.elev_id;
+
+        // Legg til fargekode-klasse
+        if (elev.trengerVurdering) {
+            elevDiv.classList.add('trenger-vurdering');
+        } else {
+            elevDiv.classList.add('fersk-vurdering');
+        }
 
         // Bygg HTML med bilete om det finst
         let elevHTML = '<div class="elev-item-content">';
@@ -1527,7 +1569,7 @@ async function visEleverIElevoversikt(fag) {
             : 'Aldri vurdert';
 
         return `
-            <div class="elev-oversikt-item ${fargeKlasse}" onclick="visElevDetaljerModal('${elev.elev_id}', '${fag}')">
+            <div class="elev-oversikt-item ${fargeKlasse}" onclick="gaTilHurtigmodusForElev('${elev.elev_id}', '${fag}')">
                 <div class="elev-info">
                     <strong>${elev.fornavn} ${elev.etternavn}</strong>
                     ${elev.faggruppe ? `<span class="faggruppe-badge">${elev.faggruppe}</span>` : ''}
@@ -1540,6 +1582,45 @@ async function visEleverIElevoversikt(fag) {
     }).join('');
 
     listeContainer.style.display = 'block';
+}
+
+async function gaTilHurtigmodusForElev(elevId, fag) {
+    // Bytt til Hurtigmodus
+    document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(view => view.classList.remove('active'));
+
+    const hurtigmodusBtn = document.querySelector('[data-view="hurtigmodus"]');
+    const hurtigmodusView = document.getElementById('hurtigmodus');
+
+    if (hurtigmodusBtn) hurtigmodusBtn.classList.add('active');
+    if (hurtigmodusView) hurtigmodusView.classList.add('active');
+
+    // Sett fag og last elevar
+    sisteValgteFag = fag;
+    const hurtigFag = document.getElementById('hurtig-fag');
+    if (hurtigFag) {
+        hurtigFag.value = fag;
+    }
+
+    await visEleverIFag(fag);
+
+    // Vel eleven
+    valgtElev = await hentElev(elevId);
+
+    // Marker eleven som valt i lista
+    const elevItems = document.querySelectorAll('.elev-item');
+    elevItems.forEach((item, index) => {
+        if (item.dataset.elevId === elevId) {
+            item.classList.add('valgt');
+            const neste = elevItems[index + 1];
+            if (neste) neste.classList.add('neste');
+        } else {
+            item.classList.remove('valgt', 'neste');
+        }
+    });
+
+    // Vis vurderingsskjema
+    visVurderingsskjema();
 }
 
 async function visElevDetaljerModal(elevId, fag) {
@@ -5728,6 +5809,7 @@ window.redigerVurdering = redigerVurdering;
 window.kopierOppsummering = kopierOppsummering;
 window.lagreRedigertVurdering = lagreRedigertVurdering;
 window.visElevDetaljerModal = visElevDetaljerModal;
+window.gaTilHurtigmodusForElev = gaTilHurtigmodusForElev;
 
 // App initialisert via DOMContentLoaded i andre modular
 console.log('Vurderingsapp v3 - Hovudmodul lasta');
