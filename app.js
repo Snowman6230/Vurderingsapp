@@ -219,14 +219,48 @@ function finnVerbaItekst(tekst) {
     return funn;
 }
 
-function lagAutoKommentar(hml, kompetansemaalTekst) {
+function lagAutoKommentar(hml, kompetansemaalTekst, valteFerdigheter = []) {
+    let baseKommentar = "";
+
     const verbFunn = finnVerbaItekst(kompetansemaalTekst);
     const verb = verbFunn.length ? verbFunn[0] : "";
-    if (verb && VERB_TEKST[verb] && VERB_TEKST[verb][hml]) return VERB_TEKST[verb][hml];
+    if (verb && VERB_TEKST[verb] && VERB_TEKST[verb][hml]) {
+        baseKommentar = VERB_TEKST[verb][hml];
+    } else {
+        if (hml === "H") baseKommentar = "Du viser høg måloppnåing og bruker fagomgrep presist. Du grunngir vala dine og ser samanhengar.";
+        else if (hml === "M") baseKommentar = "Du viser middels måloppnåing. Du har fleire relevante poeng, men treng meir presisjon og grunngiving.";
+        else baseKommentar = "Du er på veg, men treng å arbeide meir med fagomgrep, presisjon og grunngiving for å nå måla.";
+    }
 
-    if (hml === "H") return "Du viser høg måloppnåing og bruker fagomgrep presist. Du grunngir vala dine og ser samanhengar.";
-    if (hml === "M") return "Du viser middels måloppnåing. Du har fleire relevante poeng, men treng meir presisjon og grunngiving.";
-    return "Du er på veg, men treng å arbeide meir med fagomgrep, presisjon og grunngiving for å nå måla.";
+    // Legg til kommentar om ferdigheiter om dei er vald
+    if (valteFerdigheter && valteFerdigheter.length > 0) {
+        const ferdighetsNamn = valteFerdigheter.map(fId => {
+            const f = ferdigheter.find(x => x.id === fId);
+            return f ? f.navn.toLowerCase() : '';
+        }).filter(Boolean);
+
+        if (ferdighetsNamn.length > 0) {
+            let ferdighetsSetning = "";
+            if (ferdighetsNamn.length === 1) {
+                ferdighetsSetning = ferdighetsNamn[0];
+            } else if (ferdighetsNamn.length === 2) {
+                ferdighetsSetning = ferdighetsNamn.join(" og ");
+            } else {
+                const siste = ferdighetsNamn.pop();
+                ferdighetsSetning = ferdighetsNamn.join(", ") + " og " + siste;
+            }
+
+            if (hml === "H") {
+                baseKommentar += ` Du viser særleg gode ${ferdighetsSetning}.`;
+            } else if (hml === "M") {
+                baseKommentar += ` Dette gjeld særleg ${ferdighetsSetning}.`;
+            } else {
+                baseKommentar += ` Du bør særleg fokusere på ${ferdighetsSetning}.`;
+            }
+        }
+    }
+
+    return baseKommentar;
 }
 
 let sisteAutoKommentar = "";
@@ -285,7 +319,14 @@ function oppdaterAutoKommentarVedEndring() {
 
     const opt = kmSel && kmSel.selectedOptions && kmSel.selectedOptions[0] ? kmSel.selectedOptions[0] : null;
     const kmTekst = opt ? (opt.title || "") : "";
-    const ny = lagAutoKommentar(valtHML, kmTekst);
+
+    // Hent valte ferdigheiter
+    const valteFerdigheter = [];
+    document.querySelectorAll('.ferdighet-check:checked').forEach(check => {
+        valteFerdigheter.push(check.value);
+    });
+
+    const ny = lagAutoKommentar(valtHML, kmTekst, valteFerdigheter);
 
     if (!kommentarEl.value.trim() || (kommentarErAuto && kommentarEl.value === sisteAutoKommentar)) {
         kommentarEl.value = ny;
@@ -1124,27 +1165,6 @@ async function visVurderingsskjema() {
             <label>Tema (valgfritt):</label>
             <input type="text" id="vurd-tema" placeholder="Kort beskrivelse av tema">
         </div>
-        
-        
-        
-        <div class="skjema-gruppe">
-            <label>Dato:</label>
-            <input type="date" id="vurd-dato" value="${new Date().toISOString().split('T')[0]}">
-        </div>
-        
-        <div class="skjema-gruppe">
-            <label>Hovedvurdering:</label>
-            <div class="vurdering-knapper">
-                <button class="vurdering-btn h" data-vurd="H">H</button>
-                <button class="vurdering-btn m" data-vurd="M">M</button>
-                <button class="vurdering-btn l" data-vurd="L">L</button>
-            </div>
-        </div>
-        
-        <div class="skjema-gruppe">
-            <label>Kommentar (valgfritt):</label>
-            <textarea id="vurd-kommentar" placeholder="Maks 500 tegn" maxlength="500"></textarea>
-        </div>
 
         <div class="skjema-gruppe" id="kjerneelement-gruppe" style="display:none;">
             <label>Kjerneelement (valgfritt):</label>
@@ -1167,6 +1187,25 @@ async function visVurderingsskjema() {
                 <option value="">Ingen</option>
             </select>
         </div>
+
+        <div class="skjema-gruppe">
+            <label>Dato:</label>
+            <input type="date" id="vurd-dato" value="${new Date().toISOString().split('T')[0]}">
+        </div>
+
+        <div class="skjema-gruppe">
+            <label>Hovedvurdering:</label>
+            <div class="vurdering-knapper">
+                <button class="vurdering-btn h" data-vurd="H">H</button>
+                <button class="vurdering-btn m" data-vurd="M">M</button>
+                <button class="vurdering-btn l" data-vurd="L">L</button>
+            </div>
+        </div>
+
+        <div class="skjema-gruppe">
+            <label>Kommentar (valgfritt):</label>
+            <textarea id="vurd-kommentar" placeholder="Maks 500 tegn" maxlength="500"></textarea>
+        </div>
         
         <div class="ferdigheter-velger">
             <h4>Hvilke ferdigheter vurderer du? (valgfritt)</h4>
@@ -1187,76 +1226,48 @@ async function visVurderingsskjema() {
         
         <button class="lagre-btn" onclick="lagreHurtigvurdering()">💾 Lagre vurdering</button>
     `;
-    
+
     // Sett sist valgte fag
     if (sisteValgteFag) {
         document.getElementById('vurd-fag').value = sisteValgteFag;
     }
-    
+
     // Oppdater kompetansemål når fag endres
     document.getElementById('vurd-fag').addEventListener('change', async () => {
         sisteValgteFag = document.getElementById('vurd-fag').value;
         await oppdaterKompetansemaalDropdown();
-    });
-    
-    // Initialiser kompetansemål for allerede valgt fag
-    if (sisteValgteFag) {
-        await oppdaterKompetansemaalDropdown();
-    }
-    
-    
-
-// Læreplanstyrte val
-async function oppdaterLaereplanVal() {
-    const innstillinger2 = await hentInnstillinger();
-    const fag2 = document.getElementById("vurd-fag").value;
-    const lp = hentLaereplanForFag(fag2, innstillinger2);
-
-    const keGrp = document.getElementById("kjerneelement-gruppe");
-    const keSel = document.getElementById("kjerneelement");
-    const kmSel = document.getElementById("kompetansemaal");
-    const gfSel = document.getElementById("grunnferdigheit");
-
-    if (lp) {
-        if (keGrp) keGrp.style.display = (lp.kjerneelement && lp.kjerneelement.length) ? "block" : "none";
-        fyllSelect(keSel, lp.kjerneelement || [], `${lp.id || fag2}::k::`);
-        fyllSelect(kmSel, lp.kompetansemaal || [], `${lp.id || fag2}::m::`);
-        fyllSelect(gfSel, lp.grunnferdigheter || [], `${lp.id || fag2}::g::`);
-    } else {
-        if (keGrp) keGrp.style.display = "none";
-        fyllSelect(keSel, [], "");
-        fyllSelect(kmSel, [], "");
-        fyllSelect(gfSel, [], "");
-    }
-
-    oppdaterVerbHjelp();
-    oppdaterAutoKommentarVedEndring();
-}
-
-document.getElementById("vurd-fag").addEventListener("change", async () => {
-    sisteValgteFag = document.getElementById("vurd-fag").value;
-    await oppdaterLaereplanVal();
-});
-
-await oppdaterLaereplanVal();
-
-const kmSel = document.getElementById("kompetansemaal");
-const kommentarEl = document.getElementById("vurd-kommentar");
-if (kommentarEl) {
-    kommentarEl.addEventListener("input", () => {
-        if (kommentarEl.value !== sisteAutoKommentar) {
-            kommentarErAuto = false;
-        }
-    });
-}
-if (kmSel) {
-    kmSel.addEventListener("change", () => {
         oppdaterVerbHjelp();
         oppdaterAutoKommentarVedEndring();
     });
-}
 
-// Event listeners for vurderingsknapper
+    // Event listener for kompetansemål-endring
+    const kmSel = document.getElementById("kompetansemaal");
+    if (kmSel) {
+        kmSel.addEventListener("change", () => {
+            oppdaterVerbHjelp();
+            oppdaterAutoKommentarVedEndring();
+        });
+    }
+
+    // Event listener for grunnferdighet-endring
+    const gfSel = document.getElementById("grunnferdigheit");
+    if (gfSel) {
+        gfSel.addEventListener("change", () => {
+            oppdaterAutoKommentarVedEndring();
+        });
+    }
+
+    // Event listener for kommentar-input
+    const kommentarEl = document.getElementById("vurd-kommentar");
+    if (kommentarEl) {
+        kommentarEl.addEventListener("input", () => {
+            if (kommentarEl.value !== sisteAutoKommentar) {
+                kommentarErAuto = false;
+            }
+        });
+    }
+
+    // Event listeners for vurderingsknapper
     document.querySelectorAll('.vurdering-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             document.querySelectorAll('.vurdering-btn').forEach(b => b.classList.remove('valgt'));
@@ -1266,11 +1277,19 @@ if (kmSel) {
             oppdaterAutoKommentarVedEndring();
         });
     });
-    
+
     // Event listener for ferdighetsvelger
     document.querySelectorAll('.ferdighet-check').forEach(check => {
-        check.addEventListener('change', oppdaterValgteFerdigheter);
+        check.addEventListener('change', () => {
+            oppdaterValgteFerdigheter();
+            oppdaterAutoKommentarVedEndring();
+        });
     });
+
+    // Initialiser kompetansemål for allerede valgt fag
+    if (sisteValgteFag) {
+        await oppdaterKompetansemaalDropdown();
+    }
 }
 
 async function oppdaterValgteFerdigheter() {
