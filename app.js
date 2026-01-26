@@ -1563,13 +1563,23 @@ async function visEleverIElevoversikt(fag) {
             : 'Aldri vurdert';
 
         return `
-            <div class="elev-oversikt-item ${fargeKlasse}" onclick="gaTilHurtigmodusForElev('${elev.elev_id}', '${fag}')">
+            <div class="elev-oversikt-item ${fargeKlasse}">
                 <div class="elev-info">
                     <strong>${elev.fornavn} ${elev.etternavn}</strong>
                     ${elev.faggruppe ? `<span class="faggruppe-badge">${elev.faggruppe}</span>` : ''}
                 </div>
-                <div class="sist-vurdert">
-                    ${sistVurdertTekst}
+                <div class="elev-oversikt-actions">
+                    <div class="sist-vurdert">
+                        ${sistVurdertTekst}
+                    </div>
+                    <div class="action-buttons">
+                        <button class="btn-small btn-primary" onclick="gaTilHurtigmodusForElev('${elev.elev_id}', '${fag}')" title="Gå til Hurtigmodus">
+                            ⚡ Vurder
+                        </button>
+                        <button class="btn-small btn-secondary" onclick="visSamlerapport('${elev.elev_id}', '${fag}')" title="Vis samlerapport">
+                            📊 Rapport
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
@@ -1672,6 +1682,152 @@ async function visElevDetaljerModal(elevId, fag) {
             </div>
 
             <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                <button class="btn-primary" onclick="this.closest('.modal').remove()">Lukk</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
+
+async function visSamlerapport(elevId, fag) {
+    // Fjern eksisterande modals
+    const eksisterandeModals = document.querySelectorAll('.modal');
+    eksisterandeModals.forEach(m => m.remove());
+
+    const elev = await hentElev(elevId);
+    const vurderinger = await hentElevVurderinger(elevId);
+    const fagVurderinger = vurderinger.filter(v => v.fag === fag);
+
+    // Sorter etter dato, eldste først
+    fagVurderinger.sort((a, b) => new Date(a.dato) - new Date(b.dato));
+
+    // Berekn statistikk
+    const hmlTelling = { H: 0, M: 0, L: 0 };
+    fagVurderinger.forEach(v => {
+        if (v.hovedvurdering) hmlTelling[v.hovedvurdering]++;
+    });
+
+    // Ferdighetsstatistikk
+    const ferdighetsStatistikk = {};
+    ferdigheter.forEach(f => {
+        ferdighetsStatistikk[f.id] = { H: 0, M: 0, L: 0, total: 0 };
+    });
+
+    fagVurderinger.forEach(v => {
+        if (v.valgte_ferdigheter && v.ferdigheter) {
+            v.valgte_ferdigheter.forEach(fId => {
+                const vurdering = v.ferdigheter[fId];
+                if (vurdering && vurdering !== 'ikke_vurdert') {
+                    ferdighetsStatistikk[fId][vurdering]++;
+                    ferdighetsStatistikk[fId].total++;
+                }
+            });
+        }
+    });
+
+    // Kompetansemål som er vurdert
+    const kompetansemaal = fagVurderinger
+        .filter(v => v.kompetansemaal)
+        .map(v => v.kompetansemaal);
+    const unikeKompetansemaal = [...new Set(kompetansemaal)];
+
+    // Generer forslag til samla vurdering
+    const totaltVurderingar = fagVurderinger.length;
+    let forslagVurdering = '';
+    if (totaltVurderingar > 0) {
+        const prosentH = (hmlTelling.H / totaltVurderingar) * 100;
+        const prosentM = (hmlTelling.M / totaltVurderingar) * 100;
+        const prosentL = (hmlTelling.L / totaltVurderingar) * 100;
+
+        if (prosentH >= 60) {
+            forslagVurdering = 'H (Høg måloppnåing)';
+        } else if (prosentL >= 60) {
+            forslagVurdering = 'L (Låg måloppnåing)';
+        } else {
+            forslagVurdering = 'M (Middels måloppnåing)';
+        }
+    }
+
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 1000px;">
+            <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
+            <div id="rapport-innhold">
+                <h2>📊 Samlerapport: ${elev.fornavn} ${elev.etternavn}</h2>
+                <p style="color: #7f8c8d;"><strong>Fag:</strong> ${fag} | <strong>Faggruppe:</strong> ${elev.faggruppe || 'Ikkje sett'}</p>
+                <p style="color: #7f8c8d;"><strong>Generert:</strong> ${formatDato(new Date().toISOString())}</p>
+
+                <hr style="margin: 1.5rem 0;">
+
+                <h3>Oversikt vurderingar</h3>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1rem 0;">
+                    <div style="background: #d5f4e6; padding: 1rem; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 2rem; font-weight: bold; color: #27ae60;">${hmlTelling.H}</div>
+                        <div>Høg måloppnåing (H)</div>
+                    </div>
+                    <div style="background: #fff3cd; padding: 1rem; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 2rem; font-weight: bold; color: #f39c12;">${hmlTelling.M}</div>
+                        <div>Middels måloppnåing (M)</div>
+                    </div>
+                    <div style="background: #f8d7da; padding: 1rem; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 2rem; font-weight: bold; color: #e74c3c;">${hmlTelling.L}</div>
+                        <div>Låg måloppnåing (L)</div>
+                    </div>
+                </div>
+
+                ${forslagVurdering ? `
+                    <div style="background: #e8f4f8; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+                        <strong>💡 Forslag til samla vurdering:</strong> ${forslagVurdering}
+                        <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: #7f8c8d;">
+                            Basert på ${totaltVurderingar} vurdering${totaltVurderingar > 1 ? 'ar' : ''} i perioden
+                        </p>
+                    </div>
+                ` : ''}
+
+                <h3 style="margin-top: 2rem;">Ferdigheiter</h3>
+                <div style="margin: 1rem 0;">
+                    ${ferdigheter.filter(f => ferdighetsStatistikk[f.id].total > 0).map(f => {
+                        const stat = ferdighetsStatistikk[f.id];
+                        return `
+                            <div style="margin-bottom: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                                <strong>${f.navn}</strong> (${stat.total} vurdering${stat.total > 1 ? 'ar' : ''})
+                                <div style="display: flex; gap: 1rem; margin-top: 0.5rem; font-size: 0.875rem;">
+                                    <span style="color: #27ae60;">H: ${stat.H}</span>
+                                    <span style="color: #f39c12;">M: ${stat.M}</span>
+                                    <span style="color: #e74c3c;">L: ${stat.L}</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('') || '<p>Ingen ferdigheiter er vurderte enno.</p>'}
+                </div>
+
+                ${unikeKompetansemaal.length > 0 ? `
+                    <h3 style="margin-top: 2rem;">Kompetansemål som er arbeidd med</h3>
+                    <ul style="margin: 1rem 0;">
+                        ${unikeKompetansemaal.slice(0, 10).map(km => `<li>${km}</li>`).join('')}
+                    </ul>
+                ` : ''}
+
+                <h3 style="margin-top: 2rem;">Vurderingshistorikk</h3>
+                <div style="margin: 1rem 0;">
+                    ${fagVurderinger.length === 0 ? '<p>Ingen vurderingar registrert enno.</p>' : fagVurderinger.map(v => `
+                        <div style="margin-bottom: 1rem; padding: 1rem; border-left: 4px solid ${v.hovedvurdering === 'H' ? '#27ae60' : v.hovedvurdering === 'M' ? '#f39c12' : '#e74c3c'}; background: #f8f9fa; border-radius: 4px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                <strong>${formatDato(v.dato)}</strong>
+                                <span class="vurdering-badge ${v.hovedvurdering.toLowerCase()}">${v.hovedvurdering}</span>
+                            </div>
+                            ${v.tema ? `<div><strong>Tema:</strong> ${v.tema}</div>` : ''}
+                            ${v.kommentar ? `<div style="margin-top: 0.5rem;">${v.kommentar}</div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem; page-break-before: avoid;">
+                <button class="btn-secondary" onclick="skrivUtRapport()">🖨️ Skriv ut</button>
                 <button class="btn-primary" onclick="this.closest('.modal').remove()">Lukk</button>
             </div>
         </div>
@@ -5804,6 +5960,12 @@ window.kopierOppsummering = kopierOppsummering;
 window.lagreRedigertVurdering = lagreRedigertVurdering;
 window.visElevDetaljerModal = visElevDetaljerModal;
 window.gaTilHurtigmodusForElev = gaTilHurtigmodusForElev;
+window.visSamlerapport = visSamlerapport;
+window.skrivUtRapport = skrivUtRapport;
+
+function skrivUtRapport() {
+    window.print();
+}
 
 // App initialisert via DOMContentLoaded i andre modular
 console.log('Vurderingsapp v3 - Hovudmodul lasta');
