@@ -3143,14 +3143,17 @@ async function hentElev(elevId) {
         return null;
     }
 
+    // Bruk getAll() sidan get() ikkje fungerer i IndexedDB
     const transaction = db.transaction(['elever'], 'readonly');
     const store = transaction.objectStore('elever');
-    const request = store.get(elevId);
+    const request = store.getAll();
 
     return new Promise((resolve, reject) => {
         request.onsuccess = () => {
-            console.log('hentElev: Resultat frå database:', request.result);
-            resolve(request.result);
+            const alleElever = request.result;
+            const elev = alleElever.find(e => e.elev_id === elevId);
+            console.log('hentElev: Fann elev:', elev);
+            resolve(elev || null);
         };
         request.onerror = () => {
             console.error('hentElev: Feil ved henting:', request.error);
