@@ -1690,22 +1690,112 @@ async function visElevDetaljerModal(elevId, fag) {
     document.body.appendChild(modal);
 }
 
-async function visSamlerapport(elevId, fag) {
-    console.log('visSamlerapport kalla med:', elevId, fag);
+function genererTekstlegVurdering(elev, fag, karakter, tema, kompetansemaal, grunnferdigheiter, ferdighetsStatistikk, hmlTelling, totaltVurderingar) {
+    const elevNamn = elev.fornavn;
+    const vurderingsnivaa = karakter.charAt(0); // H, M eller L
 
+    let tekst = '';
+
+    // Innleiing basert på måloppnåing
+    if (vurderingsnivaa === 'H') {
+        tekst += `${elevNamn} viser høg måloppnåing i ${fag}. `;
+    } else if (vurderingsnivaa === 'M') {
+        tekst += `${elevNamn} viser middels måloppnåing i ${fag}. `;
+    } else {
+        tekst += `${elevNamn} er i utvikling i ${fag}. `;
+    }
+
+    // Tema som er arbeidd med
+    if (tema.length > 0) {
+        const temaTekst = tema.slice(0, 5).join(', ');
+        tekst += `I perioden har eleven arbeidd med ${temaTekst}. `;
+    }
+
+    // Kompetansemål og verb
+    if (kompetansemaal.length > 0) {
+        // Forsøk å finne verb i kompetansemåla
+        const verb = [];
+        kompetansemaal.forEach(km => {
+            const funneVerb = finnVerbaItekst(km);
+            verb.push(...funneVerb);
+        });
+        const unikeVerb = [...new Set(verb)];
+
+        if (unikeVerb.length > 0) {
+            const verbListe = unikeVerb.slice(0, 4).join(', ');
+            if (vurderingsnivaa === 'H') {
+                tekst += `Eleven meistrar å ${verbListe} på ein god måte. `;
+            } else if (vurderingsnivaa === 'M') {
+                tekst += `Eleven kan ${verbListe} med støtte. `;
+            } else {
+                tekst += `Eleven arbeider med å ${verbListe}. `;
+            }
+        }
+
+        // Nemn nokre kompetansemål
+        if (kompetansemaal.length <= 2) {
+            tekst += `Dette knyter seg til kompetansemålet: "${kompetansemaal[0].substring(0, 100)}...". `;
+        } else {
+            tekst += `Arbeidet knyter seg til ${kompetansemaal.length} ulike kompetansemål frå læreplanen. `;
+        }
+    }
+
+    // Grunnleggjande ferdigheiter
+    const vurderteFerdigheiter = ferdigheter.filter(f => ferdighetsStatistikk[f.id].total > 0);
+    if (vurderteFerdigheiter.length > 0) {
+        const ferdighetsNamn = vurderteFerdigheiter.map(f => f.navn.toLowerCase());
+
+        if (vurderingsnivaa === 'H') {
+            const besteFerdigheiter = vurderteFerdigheiter
+                .filter(f => ferdighetsStatistikk[f.id].H > ferdighetsStatistikk[f.id].M + ferdighetsStatistikk[f.id].L)
+                .map(f => f.navn.toLowerCase());
+
+            if (besteFerdigheiter.length > 0) {
+                const liste = besteFerdigheiter.join(', ');
+                tekst += `Eleven viser særleg god kompetanse innan ${liste}. `;
+            } else {
+                tekst += `Når det gjeld grunnleggjande ferdigheiter har eleven vist god framgang innan ${ferdighetsNamn.slice(0, 3).join(', ')}. `;
+            }
+        } else if (vurderingsnivaa === 'M') {
+            tekst += `Eleven har arbeidd med grunnleggjande ferdigheiter som ${ferdighetsNamn.slice(0, 3).join(', ')}. `;
+
+            // Finn ferdigheiter som treng meir arbeid
+            const svakeFerdigheiter = vurderteFerdigheiter
+                .filter(f => ferdighetsStatistikk[f.id].L > ferdighetsStatistikk[f.id].H)
+                .map(f => f.navn.toLowerCase());
+
+            if (svakeFerdigheiter.length > 0) {
+                tekst += `For vidare utvikling bør eleven særleg fokusere på ${svakeFerdigheiter[0]}. `;
+            }
+        } else {
+            tekst += `Eleven har arbeidd med ${ferdighetsNamn.slice(0, 3).join(', ')}. `;
+            tekst += `For å nå måla treng eleven meir støtte og øving i desse ferdigheitene. `;
+        }
+    }
+
+    // Grunnferdigheiter frå læreplanen (om dei er valde)
+    if (grunnferdigheiter.length > 0) {
+        tekst += `Vurderingane er knytte til grunnleggjande ferdigheiter som omfattar ${grunnferdigheiter.length > 1 ? 'fleire område' : 'ulike aspekt ved læring i faget'}. `;
+    }
+
+    // Avrunding basert på nivå
+    if (vurderingsnivaa === 'H') {
+        tekst += `Samla sett viser eleven god forståing og evne til å bruke kunnskapen i praktiske samanhengar.`;
+    } else if (vurderingsnivaa === 'M') {
+        tekst += `Med vidare arbeid og fokus på grunnleggjande ferdigheiter har eleven gode føresetnader for å nå læringsmåla.`;
+    } else {
+        tekst += `Eleven treng vidare oppfølging og støtte for å utvikle forståinga og nå læringsmåla i faget.`;
+    }
+
+    return tekst;
+}
+
+async function visSamlerapport(elevId, fag) {
     // Fjern eksisterande modals
     const eksisterandeModals = document.querySelectorAll('.modal');
     eksisterandeModals.forEach(m => m.remove());
 
-    // Debug: Sjekk alle elevar i databasen
-    const alleElever = await hentAlleElever();
-    console.log('Totalt elevar i database:', alleElever.length);
-    console.log('Første 3 elevar:', alleElever.slice(0, 3).map(e => ({ elev_id: e.elev_id, namn: `${e.fornavn} ${e.etternavn}` })));
-    const elevFinnes = alleElever.find(e => e.elev_id === elevId);
-    console.log('Finn eleven med ID', elevId, ':', elevFinnes ? 'JA' : 'NEI');
-
     const elev = await hentElev(elevId);
-    console.log('Elev henta:', elev);
     const vurderinger = await hentElevVurderinger(elevId);
     const fagVurderinger = vurderinger.filter(v => v.fag === fag);
 
@@ -1742,21 +1832,48 @@ async function visSamlerapport(elevId, fag) {
         .map(v => v.kompetansemaal);
     const unikeKompetansemaal = [...new Set(kompetansemaal)];
 
-    // Generer forslag til samla vurdering
+    // Hent tema
+    const tema = fagVurderinger
+        .filter(v => v.tema)
+        .map(v => v.tema);
+    const unikeTema = [...new Set(tema)];
+
+    // Hent grunnferdigheiter
+    const grunnferdigheiter = fagVurderinger
+        .filter(v => v.grunnferdigheit)
+        .map(v => v.grunnferdigheit);
+    const unikeGrunnferdigheiter = [...new Set(grunnferdigheiter)];
+
+    // Generer forslag til samla vurdering (enkel versjon)
     const totaltVurderingar = fagVurderinger.length;
+    let forslagKarakter = '';
     let forslagVurdering = '';
+
     if (totaltVurderingar > 0) {
         const prosentH = (hmlTelling.H / totaltVurderingar) * 100;
         const prosentM = (hmlTelling.M / totaltVurderingar) * 100;
         const prosentL = (hmlTelling.L / totaltVurderingar) * 100;
 
         if (prosentH >= 60) {
-            forslagVurdering = 'H (Høg måloppnåing)';
+            forslagKarakter = 'H (Høg måloppnåing)';
         } else if (prosentL >= 60) {
-            forslagVurdering = 'L (Låg måloppnåing)';
+            forslagKarakter = 'L (Låg måloppnåing)';
         } else {
-            forslagVurdering = 'M (Middels måloppnåing)';
+            forslagKarakter = 'M (Middels måloppnåing)';
         }
+
+        // Generer omfattande tekstleg vurdering
+        forslagVurdering = genererTekstlegVurdering(
+            elev,
+            fag,
+            forslagKarakter,
+            unikeTema,
+            unikeKompetansemaal,
+            unikeGrunnferdigheiter,
+            ferdighetsStatistikk,
+            hmlTelling,
+            totaltVurderingar
+        );
     }
 
     const modal = document.createElement('div');
@@ -1789,9 +1906,12 @@ async function visSamlerapport(elevId, fag) {
                 </div>
 
                 ${forslagVurdering ? `
-                    <div style="background: #e8f4f8; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
-                        <strong>💡 Forslag til samla vurdering:</strong> ${forslagVurdering}
-                        <p style="margin: 0.5rem 0 0 0; font-size: 0.875rem; color: #7f8c8d;">
+                    <div style="background: #e8f4f8; padding: 1.5rem; border-radius: 8px; margin: 1rem 0;">
+                        <h3 style="margin-top: 0;">💡 Forslag til samla vurdering: ${forslagKarakter}</h3>
+                        <div style="line-height: 1.6; margin-top: 1rem;">
+                            ${forslagVurdering}
+                        </div>
+                        <p style="margin: 1rem 0 0 0; font-size: 0.875rem; color: #7f8c8d; font-style: italic;">
                             Basert på ${totaltVurderingar} vurdering${totaltVurderingar > 1 ? 'ar' : ''} i perioden
                         </p>
                     </div>
@@ -3136,8 +3256,6 @@ async function hentEleverIFag(fag) {
 }
 
 async function hentElev(elevId) {
-    console.log('hentElev: Hentar elev med ID:', elevId);
-
     if (!db) {
         console.error('hentElev: Database er ikkje initialisert!');
         return null;
@@ -3152,7 +3270,6 @@ async function hentElev(elevId) {
         request.onsuccess = () => {
             const alleElever = request.result;
             const elev = alleElever.find(e => e.elev_id === elevId);
-            console.log('hentElev: Fann elev:', elev);
             resolve(elev || null);
         };
         request.onerror = () => {
