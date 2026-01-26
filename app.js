@@ -1697,6 +1697,13 @@ async function visSamlerapport(elevId, fag) {
     const eksisterandeModals = document.querySelectorAll('.modal');
     eksisterandeModals.forEach(m => m.remove());
 
+    // Debug: Sjekk alle elevar i databasen
+    const alleElever = await hentAlleElever();
+    console.log('Totalt elevar i database:', alleElever.length);
+    console.log('Første 3 elevar:', alleElever.slice(0, 3).map(e => ({ elev_id: e.elev_id, namn: `${e.fornavn} ${e.etternavn}` })));
+    const elevFinnes = alleElever.find(e => e.elev_id === elevId);
+    console.log('Finn eleven med ID', elevId, ':', elevFinnes ? 'JA' : 'NEI');
+
     const elev = await hentElev(elevId);
     console.log('Elev henta:', elev);
     const vurderinger = await hentElevVurderinger(elevId);
@@ -3129,12 +3136,26 @@ async function hentEleverIFag(fag) {
 }
 
 async function hentElev(elevId) {
+    console.log('hentElev: Hentar elev med ID:', elevId);
+
+    if (!db) {
+        console.error('hentElev: Database er ikkje initialisert!');
+        return null;
+    }
+
     const transaction = db.transaction(['elever'], 'readonly');
     const store = transaction.objectStore('elever');
     const request = store.get(elevId);
-    
-    return new Promise((resolve) => {
-        request.onsuccess = () => resolve(request.result);
+
+    return new Promise((resolve, reject) => {
+        request.onsuccess = () => {
+            console.log('hentElev: Resultat frå database:', request.result);
+            resolve(request.result);
+        };
+        request.onerror = () => {
+            console.error('hentElev: Feil ved henting:', request.error);
+            reject(request.error);
+        };
     });
 }
 
