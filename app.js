@@ -1573,10 +1573,10 @@ async function visEleverIElevoversikt(fag) {
                         ${sistVurdertTekst}
                     </div>
                     <div class="action-buttons">
-                        <button class="btn-small btn-primary" onclick="gaTilHurtigmodusForElev('${elev.elev_id}', '${fag}')" title="Gå til Hurtigmodus">
+                        <button class="btn-small btn-primary" onclick="event.stopPropagation(); gaTilHurtigmodusForElev('${elev.elev_id}', '${fag}')" title="Gå til Hurtigmodus">
                             ⚡ Vurder
                         </button>
-                        <button class="btn-small btn-secondary" onclick="visSamlerapport('${elev.elev_id}', '${fag}')" title="Vis samlerapport">
+                        <button class="btn-small btn-secondary" onclick="event.stopPropagation(); visSamlerapport('${elev.elev_id}', '${fag}')" title="Vis samlerapport">
                             📊 Rapport
                         </button>
                     </div>
@@ -1691,11 +1691,14 @@ async function visElevDetaljerModal(elevId, fag) {
 }
 
 async function visSamlerapport(elevId, fag) {
+    console.log('visSamlerapport kalla med:', elevId, fag);
+
     // Fjern eksisterande modals
     const eksisterandeModals = document.querySelectorAll('.modal');
     eksisterandeModals.forEach(m => m.remove());
 
     const elev = await hentElev(elevId);
+    console.log('Elev henta:', elev);
     const vurderinger = await hentElevVurderinger(elevId);
     const fagVurderinger = vurderinger.filter(v => v.fag === fag);
 
