@@ -153,7 +153,7 @@ nav {
 
 .hurtig-layout {
     display: grid;
-    grid-template-columns: 1fr 2fr;
+    grid-template-columns: 2fr 3fr;
     gap: 1rem;
 }
 
@@ -165,8 +165,6 @@ nav {
 }
 
 .elev-liste {
-    max-height: 500px;
-    overflow-y: auto;
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 0.5rem;
