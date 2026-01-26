@@ -878,19 +878,10 @@ function setupEventListeners() {
     }
 
     // Elevoversikt
-    const elevoversiktFaggruppe = document.getElementById('elevoversikt-faggruppe');
-    if (elevoversiktFaggruppe) {
-        elevoversiktFaggruppe.addEventListener('change', async (e) => {
-            await oppdaterElevSelect(e.target.value);
-        });
-    }
-
-    const elevoversiktElev = document.getElementById('elevoversikt-elev');
-    if (elevoversiktElev) {
-        elevoversiktElev.addEventListener('change', (e) => {
-            if (e.target.value) {
-                visElevDetaljer(e.target.value);
-            }
+    const elevoversiktFag = document.getElementById('elevoversikt-fag');
+    if (elevoversiktFag) {
+        elevoversiktFag.addEventListener('change', async (e) => {
+            await visEleverIElevoversikt(e.target.value);
         });
     }
 
@@ -1476,23 +1467,142 @@ async function visElevoversikt() {
     await lastKlasser();
 }
 
-async function oppdaterElevSelect(klasse) {
-    const elevSelect = document.getElementById('elevoversikt-elev');
-    
-    if (!klasse) {
-        elevSelect.innerHTML = '<option value="">-- Velg elev --</option>';
+async function visEleverIElevoversikt(fag) {
+    const listeContainer = document.getElementById('elev-liste-container');
+    const liste = document.getElementById('elev-liste');
+
+    if (!fag) {
+        listeContainer.style.display = 'none';
         return;
     }
-    
-    const elever = await hentEleverIKlasse(klasse);
-    
-    elevSelect.innerHTML = '<option value="">-- Velg elev --</option>';
-    elever.forEach(elev => {
-        const option = document.createElement('option');
-        option.value = elev.elev_id;
-        option.textContent = `${elev.fornavn} ${elev.etternavn}`;
-        elevSelect.appendChild(option);
+
+    const alleElever = await hentAlleElever();
+    const eleverIFag = alleElever.filter(e => e.fag === fag);
+
+    if (eleverIFag.length === 0) {
+        liste.innerHTML = '<p class="ingen-data">Ingen elevar registrert i dette faget</p>';
+        listeContainer.style.display = 'block';
+        return;
+    }
+
+    const innstillinger = await hentInnstillinger();
+    const varseldagar = innstillinger.varseldagar || 14;
+    const iDag = new Date();
+
+    // Hent sist vurderingsdato for kvar elev
+    const elevMedSistVurdert = await Promise.all(eleverIFag.map(async (elev) => {
+        const vurderinger = await hentElevVurderinger(elev.elev_id);
+        const fagVurderinger = vurderinger.filter(v => v.fag === fag);
+
+        let sistVurdert = null;
+        if (fagVurderinger.length > 0) {
+            // Sorter etter dato, nyeste først
+            fagVurderinger.sort((a, b) => new Date(b.dato) - new Date(a.dato));
+            sistVurdert = new Date(fagVurderinger[0].dato);
+        }
+
+        const dagarSidan = sistVurdert ? Math.floor((iDag - sistVurdert) / (1000 * 60 * 60 * 24)) : null;
+        const trengerVurdering = dagarSidan === null || dagarSidan > varseldagar;
+
+        return {
+            ...elev,
+            sistVurdert,
+            dagarSidan,
+            trengerVurdering
+        };
+    }));
+
+    // Sorter: dei som treng vurdering først, deretter alfabetisk
+    elevMedSistVurdert.sort((a, b) => {
+        if (a.trengerVurdering !== b.trengerVurdering) {
+            return a.trengerVurdering ? -1 : 1;
+        }
+        return `${a.fornavn} ${a.etternavn}`.localeCompare(`${b.fornavn} ${b.etternavn}`);
     });
+
+    liste.innerHTML = elevMedSistVurdert.map(elev => {
+        const fargeKlasse = elev.trengerVurdering ? 'trenger-vurdering' : 'fersk-vurdering';
+        const sistVurdertTekst = elev.sistVurdert
+            ? `${formatDato(elev.sistVurdert.toISOString())} (${elev.dagarSidan} dagar sidan)`
+            : 'Aldri vurdert';
+
+        return `
+            <div class="elev-oversikt-item ${fargeKlasse}" onclick="visElevDetaljerModal('${elev.elev_id}', '${fag}')">
+                <div class="elev-info">
+                    <strong>${elev.fornavn} ${elev.etternavn}</strong>
+                    ${elev.faggruppe ? `<span class="faggruppe-badge">${elev.faggruppe}</span>` : ''}
+                </div>
+                <div class="sist-vurdert">
+                    ${sistVurdertTekst}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    listeContainer.style.display = 'block';
+}
+
+async function visElevDetaljerModal(elevId, fag) {
+    // Fjern eksisterande modals
+    const eksisterandeModals = document.querySelectorAll('.modal');
+    eksisterandeModals.forEach(m => m.remove());
+
+    const elev = await hentElev(elevId);
+    const vurderinger = await hentElevVurderinger(elevId);
+    const fagVurderinger = vurderinger.filter(v => v.fag === fag);
+
+    // Sorter etter dato, nyeste først
+    fagVurderinger.sort((a, b) => new Date(b.dato) - new Date(a.dato));
+
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.style.display = 'block';
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 900px;">
+            <span class="close" onclick="this.closest('.modal').remove()">&times;</span>
+            <h2>${elev.fornavn} ${elev.etternavn} - ${fag}</h2>
+            <p><strong>Faggruppe:</strong> ${elev.faggruppe || 'Ikkje sett'}</p>
+
+            <div style="margin: 1.5rem 0;">
+                <h3>Vurderingar (${fagVurderinger.length})</h3>
+                ${fagVurderinger.length === 0 ? '<p>Ingen vurderingar registrert enno.</p>' : `
+                    <div class="vurdering-tidslinje">
+                        ${fagVurderinger.map(v => `
+                            <div class="tidslinje-item">
+                                <div class="tidslinje-header">
+                                    <strong>${formatDato(v.dato)}</strong>
+                                    <span>${v.skoleaar} ${v.semester}</span>
+                                    <span class="vurdering-badge ${v.hovedvurdering.toLowerCase()}">
+                                        ${v.hovedvurdering}
+                                    </span>
+                                </div>
+                                ${v.tema ? `<div><strong>Tema:</strong> ${v.tema}</div>` : ''}
+                                ${v.kommentar ? `<div style="margin-top: 0.5rem;"><strong>Kommentar:</strong> ${v.kommentar}</div>` : ''}
+                                ${v.valgte_ferdigheter && v.valgte_ferdigheter.length > 0 ? `
+                                    <div style="margin-top: 0.5rem;">
+                                        <strong>Vurderte ferdigheiter:</strong>
+                                        <ul style="margin: 0.25rem 0 0 1.5rem;">
+                                            ${v.valgte_ferdigheter.map(fId => {
+                                                const ferdighet = ferdigheter.find(f => f.id === fId);
+                                                const vurdering = v.ferdigheter[fId];
+                                                return `<li>${ferdighet?.navn || fId}: ${vurdering}</li>`;
+                                            }).join('')}
+                                        </ul>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                `}
+            </div>
+
+            <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 1.5rem;">
+                <button class="btn-primary" onclick="this.closest('.modal').remove()">Lukk</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
 }
 
 async function visElevDetaljer(elevId) {
@@ -2885,36 +2995,52 @@ async function lastInnstillinger() {
 async function lastKlasser() {
     const elever = await hentAlleElever();
     const klasser = [...new Set(elever.map(e => e.faggruppe))].sort();
-    
+
     // Oppdater alle klassevelgere
     const selects = [
         document.getElementById('hurtig-faggruppe'),
-        document.getElementById('elevoversikt-faggruppe'),
         document.getElementById('oversikt-faggruppe'),
         document.getElementById('historikk-faggruppe')
     ];
-    
+
     selects.forEach(select => {
         if (!select) return;
         const currentValue = select.value;
-        
+
         if (select.id === 'historikk-faggruppe') {
             select.innerHTML = '<option value="">Alle klasser</option>';
         } else {
             select.innerHTML = '<option value="">-- Velg klasse --</option>';
         }
-        
+
         klasser.forEach(klasse => {
             const option = document.createElement('option');
             option.value = klasse;
             option.textContent = klasse;
             select.appendChild(option);
         });
-        
+
         if (currentValue) {
             select.value = currentValue;
         }
     });
+
+    // Fyll fag-select i elevoversikt
+    const elevoversiktFag = document.getElementById('elevoversikt-fag');
+    if (elevoversiktFag) {
+        const fagNamn = await hentFagNamn();
+        const currentValue = elevoversiktFag.value;
+        elevoversiktFag.innerHTML = '<option value="">-- Vel fag --</option>';
+        fagNamn.forEach(fag => {
+            const option = document.createElement('option');
+            option.value = fag;
+            option.textContent = fag;
+            elevoversiktFag.appendChild(option);
+        });
+        if (currentValue && fagNamn.includes(currentValue)) {
+            elevoversiktFag.value = currentValue;
+        }
+    }
 }
 
 async function lastElever() {
@@ -5601,6 +5727,7 @@ window.toggleDetaljer = toggleDetaljer;
 window.redigerVurdering = redigerVurdering;
 window.kopierOppsummering = kopierOppsummering;
 window.lagreRedigertVurdering = lagreRedigertVurdering;
+window.visElevDetaljerModal = visElevDetaljerModal;
 
 // App initialisert via DOMContentLoaded i andre modular
 console.log('Vurderingsapp v3 - Hovudmodul lasta');

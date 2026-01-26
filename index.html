@@ -107,33 +107,15 @@
             <section id="elevoversikt" class="view">
                 <div class="elevoversikt-container">
                     <div class="elev-velger">
-                        <select id="elevoversikt-faggruppe">
-                            <option value="">-- Vel faggruppe --</option>
+                        <label style="font-weight: 500; margin-bottom: 0.5rem; display: block;">Vel fag:</label>
+                        <select id="elevoversikt-fag">
+                            <option value="">-- Vel fag --</option>
                         </select>
-                        <select id="elevoversikt-elev">
-                            <option value="">-- Velg elev --</option>
-                        </select>
-                    </div>
-                    
-                    <div id="elev-detaljer" class="elev-detaljer">
-                        <p>Velg en elev for å se vurderinger og utvikling</p>
                     </div>
 
-                    <!-- Elevgrafikk -->
-                    <div id="elev-grafikk-container" class="grafikk-container" style="display:none; margin-top: 2rem;">
-                        <h3>📊 Ferdighetsutvikling</h3>
-                        <div class="graf-velger">
-                            <label>
-                                <input type="radio" name="graftype" value="line" checked> Linjegraf
-                            </label>
-                            <label>
-                                <input type="radio" name="graftype" value="radar"> Radardiagram
-                            </label>
-                            <label>
-                                <input type="radio" name="graftype" value="bar"> Stolpediagram
-                            </label>
-                        </div>
-                        <canvas id="elev-graf" width="400" height="200"></canvas>
+                    <div id="elev-liste-container" style="margin-top: 1.5rem; display: none;">
+                        <h3>Elevar i faget</h3>
+                        <div id="elev-liste" class="elev-oversikt-liste"></div>
                     </div>
                 </div>
             </section>
