@@ -1838,3 +1838,39 @@ body.dark-mode .verb-tab:hover {
 body.dark-mode .verb-tab.active {
     color: #3498db;
 }
+
+/* Feillogg-modal */
+#feillogg-modal .modal-content {
+    max-width: 900px;
+    max-height: 85vh;
+    overflow-y: auto;
+}
+
+body.dark-mode #feillogg-modal .modal-content {
+    background: #2c3e50;
+    color: #ecf0f1;
+}
+
+body.dark-mode #feillogg-liste {
+    background: #34495e !important;
+    border-color: #4a6785 !important;
+}
+
+body.dark-mode #feillogg-liste > div {
+    border-bottom-color: #4a6785 !important;
+}
+
+body.dark-mode #feillogg-liste pre {
+    background: #2c3e50 !important;
+    color: #ecf0f1;
+}
+
+body.dark-mode #feillogg-samandrag > div {
+    background: #34495e !important;
+    color: #ecf0f1;
+}
+
+body.dark-mode #feillogg-samandrag > div .stat-tall,
+body.dark-mode #feillogg-samandrag > div div:first-child {
+    color: #ecf0f1;
+}

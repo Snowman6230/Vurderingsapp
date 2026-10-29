@@ -391,7 +391,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     
 
-console.log('🚀 Startar Vurderingsapp v3.0.3...');
+console.log('🚀 Startar Vurderingsapp v3.0.5...');
 
 console.log('✅ Database initialisert');
 console.log('✅ Hovudapp initialisert');
@@ -442,7 +442,7 @@ document.getElementById('eksport-pdf')?.addEventListener('click', eksporterTilPD
 // Ferdigheits-UI (ikon og fargar)
 try { leggTilFerdighetsIkoner(); fargekodFerdigheter(); } catch (e) {}
 
-console.log('🎉 Vurderingsapp v3.0.3 fullstendig lasta!');
+console.log('🎉 Vurderingsapp v3.0.5 fullstendig lasta!');
     const temaEl = document.getElementById('tema');
     const fokusEl = document.getElementById('fokus');
     if (temaEl) temaEl.addEventListener('input', oppdaterTekstforslag);
@@ -578,6 +578,7 @@ async function initDB() {
         
         request.onerror = () => {
             console.error('Database feil:', request.error);
+            if (window.Feillogg) window.Feillogg.dbFeil('Kunne ikkje opne database: ' + (request.error?.message || 'ukjend feil'), 'initDB');
             reject(request.error);
         };
         
@@ -955,6 +956,26 @@ function setupEventListeners() {
     if (importerBtn && importerBackupV2) {
         importerBtn.addEventListener('click', () => importerBackupV2.click());
     }
+
+    // Feillogg-knappar
+    const visFeilloggBtn = document.getElementById('vis-feillogg-btn');
+    if (visFeilloggBtn) visFeilloggBtn.addEventListener('click', () => {
+        if (window.Feillogg) window.Feillogg.visModal();
+    });
+    const eksportFeilJSON = document.getElementById('eksporter-feilrapport-json-btn');
+    if (eksportFeilJSON) eksportFeilJSON.addEventListener('click', () => {
+        if (window.Feillogg) {
+            window.Feillogg.eksporterJSON();
+            visToast('Feilrapport (JSON) eksportert!', 'success');
+        }
+    });
+    const eksportFeilTekst = document.getElementById('eksporter-feilrapport-tekst-btn');
+    if (eksportFeilTekst) eksportFeilTekst.addEventListener('click', () => {
+        if (window.Feillogg) {
+            window.Feillogg.eksporterTekst();
+            visToast('Feilrapport (tekst) eksportert!', 'success');
+        }
+    });
 
     // Fiks elevdata knapp
     const fiksElevdataBtn = document.getElementById('fiks-elevdata-btn');
@@ -2660,6 +2681,31 @@ async function visInnstillinger() {
     // Oppdater fagoversikt
     if (typeof oppdaterFagoversikt === 'function') {
         await oppdaterFagoversikt();
+    }
+
+    // Oppdater feillogg-status
+    if (window.Feillogg) {
+        try {
+            const logg = await window.Feillogg.hent();
+            const statusEl = document.getElementById('feillogg-status');
+            if (statusEl) {
+                const feil = logg.filter(l => l.type === 'error').length;
+                const aat = logg.filter(l => l.type === 'warning').length;
+                if (feil > 0 || aat > 0) {
+                    statusEl.style.display = 'block';
+                    statusEl.style.background = feil > 0 ? '#fff3e0' : '#e8f5e9';
+                    statusEl.innerHTML = `📊 <strong>${logg.length}</strong> oppføringar i loggen (${feil} feil, ${aat} åtvaringar). Trykk "Vis feillogg" for detaljar.`;
+                } else if (logg.length > 0) {
+                    statusEl.style.display = 'block';
+                    statusEl.style.background = '#e8f5e9';
+                    statusEl.innerHTML = `✅ ${logg.length} oppføringar i loggen — ingen feil registrert.`;
+                } else {
+                    statusEl.style.display = 'block';
+                    statusEl.style.background = '#e8f5e9';
+                    statusEl.innerHTML = `✅ Loggen er tom — ingen feil registrert.`;
+                }
+            }
+        } catch (e) { /* stille */ }
     }
 }
 

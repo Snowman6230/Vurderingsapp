@@ -576,6 +576,19 @@
                         </div>
                     </div>
 
+                    <!-- Feillogg og diagnostikk -->
+                    <div class="innstilling-gruppe">
+                        <h3>📋 Feillogg og diagnostikk</h3>
+                        <p class="hjelpetekst">Sjå feilmeldingar og diagnostikk-data frå appen. Nyttig ved feilsøking og for support.</p>
+                        <div class="innstilling-rad" style="flex-wrap: wrap;">
+                            <button id="vis-feillogg-btn" class="btn-secondary">📋 Vis feillogg</button>
+                            <button id="eksporter-feilrapport-json-btn" class="btn-primary">📥 Eksporter feilrapport (JSON)</button>
+                            <button id="eksporter-feilrapport-tekst-btn" class="btn-primary">📄 Eksporter feilrapport (tekst)</button>
+                        </div>
+                        <div id="feillogg-status" style="margin-top: 0.75rem; padding: 0.75rem; background: #e8f5e9; border-radius: 6px; font-size: 0.9rem; display: none;">
+                        </div>
+                    </div>
+
                     <!-- Farlig sone -->
                     <div class="innstilling-gruppe fare">
                         <h3>⚠️ Farlig sone</h3>
@@ -625,7 +638,7 @@
                         <hr style="margin: 1rem 0; opacity: 0.3;">
                         <p style="margin-bottom: 0.5rem;"><strong>Lisens og rettar:</strong></p>
                         <p style="margin-bottom: 1rem;">Denne appen er utvikla og eigd av Alpindata. All bruk er underlagt gjeldande lisensvilkår. Kjeldekode, design og funksjonalitet er verna av opphavsrett.</p>
-                        <p><strong>Versjon:</strong> 3.0.4</p>
+                        <p><strong>Versjon:</strong> 3.0.5</p>
                     </div>
                 </div>
             </section>
@@ -646,7 +659,7 @@
                             <li>📄 Eksportere data til Excel og PDF</li>
                             <li>🎯 Kople vurderingar til læreplan og kompetansemål</li>
                         </ul>
-                        <p style="margin-top: 1rem;"><strong>Versjon:</strong> 3.0.4</p>
+                        <p style="margin-top: 1rem;"><strong>Versjon:</strong> 3.0.5</p>
                         <p><strong>Utvikla av:</strong> Hans Petter Brunstad Sørensen, Alpindata</p>
                     </div>
                     
@@ -877,9 +890,9 @@
             
             <!-- Om appen -->
             <div id="support-om" class="support-tab-content active">
-                <h3>Vurderingsapp v3.0.4</h3>
+                <h3>Vurderingsapp v3.0.5</h3>
                 <p><strong>Utvikla av:</strong> Hans Petter Brunstad Sørensen, Alpindata</p>
-                <p><strong>Versjon:</strong> 3.0.4</p>
+                <p><strong>Versjon:</strong> 3.0.5</p>
                 <p><strong>Dato:</strong> 2026-01-21</p>
                 
                 <h4 style="margin-top: 1.5rem;">Nye funksjonar i v3:</h4>
@@ -924,6 +937,7 @@
     <!-- Toast meldinger -->
     <div id="toast" class="toast"></div>
 
+    <script src="feillogg.js"></script>
     <script src="i18n-embedded.js"></script>
     <script src="database-migration.js"></script>
     <script src="elevadministrasjon.js"></script>
