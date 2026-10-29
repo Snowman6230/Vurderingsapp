@@ -77,7 +77,7 @@
             stakk: String(oppfoering.stakk || '').substring(0, 5000),
             ekstra: oppfoering.ekstra || null,
             nettlesar: hentNettlesarInfo(),
-            appVersjon: '3.0.5'
+            appVersjon: '3.1.0'
         };
 
         try {
@@ -296,7 +296,7 @@
         const logg = await hentLogg();
         const rapport = {
             appNamn: 'Vurderingsapp v3',
-            appVersjon: '3.0.5',
+            appVersjon: '3.1.0',
             generert: new Date().toISOString(),
             nettlesar: hentNettlesarInfo(),
             antalFeil: logg.length,
@@ -326,7 +326,7 @@
             '═══════════════════════════════════════════════════════',
             '',
             `Generert: ${new Date().toLocaleString('no-NO')}`,
-            `App-versjon: 3.0.5`,
+            `App-versjon: 3.1.0`,
             `Nettlesar: ${navigator.userAgent}`,
             `Plattform: ${navigator.platform || 'ukjend'}`,
             `Online: ${navigator.onLine ? 'Ja' : 'Nei'}`,

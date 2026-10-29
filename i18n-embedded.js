@@ -76,16 +76,8 @@ class I18n {
 
 const i18n = new I18n();
 
-document.addEventListener('DOMContentLoaded', () => {
-    i18n.init();
-
-    const languageBtn = document.getElementById('language-btn');
-    if (languageBtn) {
-        languageBtn.addEventListener('click', () => {
-            showLanguagePicker();
-        });
-    }
-});
+// i18n init blir kalla frå hovud-init i app.js (konsolidert init B3)
+// window.i18n og window.showLanguagePicker er tilgjengelege via eksport under
 
 function showLanguagePicker() {
     const modal = document.createElement('div');

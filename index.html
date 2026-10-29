@@ -199,6 +199,32 @@
                         <h3>Utvikling over tid</h3>
                         <canvas id="trend-graf" width="400" height="200"></canvas>
                     </div>
+
+                    <!-- Verb-fordeling (C1) -->
+                    <div class="grafikk-seksjon">
+                        <h3>Verb-fordeling</h3>
+                        <div style="height:350px;">
+                            <canvas id="verb-fordeling-graf" width="400" height="350"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Diagrameksport (C1) -->
+                    <div class="grafikk-seksjon" style="text-align:center; padding:1rem 0;">
+                        <h3 style="margin-bottom:0.8rem;">📊 Eksporter diagram</h3>
+                        <button onclick="eksporterGrafSomPNG('ferdigheter-graf', 'ferdigheter.png')" class="btn btn-secondary" style="margin:0.3rem;">Ferdigheiter (PNG)</button>
+                        <button onclick="eksporterGrafSomPNG('trend-graf', 'trend.png')" class="btn btn-secondary" style="margin:0.3rem;">Trend (PNG)</button>
+                        <button onclick="eksporterGrafSomPNG('verb-fordeling-graf', 'verb_fordeling.png')" class="btn btn-secondary" style="margin:0.3rem;">Verb (PNG)</button>
+                        <button onclick="eksporterAlleGrafar()" class="btn btn-primary" style="margin:0.3rem;">Alle diagram (PNG)</button>
+                    </div>
+
+                    <!-- Data-eksport (C3) -->
+                    <div class="grafikk-seksjon" style="text-align:center; padding:1rem 0;">
+                        <h3 style="margin-bottom:0.8rem;">📄 Eksporter vurderingsdata</h3>
+                        <p style="color:#7f8c8d; font-size:0.9rem; margin-bottom:0.8rem;">Vel faggruppe og fag i filtera over for å eksportere</p>
+                        <button id="eksport-excel" class="btn btn-secondary" style="margin:0.3rem;">📗 Excel (.xlsx)</button>
+                        <button id="eksport-pdf" class="btn btn-secondary" style="margin:0.3rem;">📕 PDF</button>
+                        <button id="eksport-word" class="btn btn-primary" style="margin:0.3rem;">📘 Word (.doc)</button>
+                    </div>
                 </div>
             </section>
 
@@ -638,7 +664,7 @@
                         <hr style="margin: 1rem 0; opacity: 0.3;">
                         <p style="margin-bottom: 0.5rem;"><strong>Lisens og rettar:</strong></p>
                         <p style="margin-bottom: 1rem;">Denne appen er utvikla og eigd av Alpindata. All bruk er underlagt gjeldande lisensvilkår. Kjeldekode, design og funksjonalitet er verna av opphavsrett.</p>
-                        <p><strong>Versjon:</strong> 3.0.5</p>
+                        <p><strong>Versjon:</strong> 3.1.0</p>
                     </div>
                 </div>
             </section>
@@ -659,7 +685,7 @@
                             <li>📄 Eksportere data til Excel og PDF</li>
                             <li>🎯 Kople vurderingar til læreplan og kompetansemål</li>
                         </ul>
-                        <p style="margin-top: 1rem;"><strong>Versjon:</strong> 3.0.5</p>
+                        <p style="margin-top: 1rem;"><strong>Versjon:</strong> 3.1.0</p>
                         <p><strong>Utvikla av:</strong> Hans Petter Brunstad Sørensen, Alpindata</p>
                     </div>
                     
@@ -890,9 +916,9 @@
             
             <!-- Om appen -->
             <div id="support-om" class="support-tab-content active">
-                <h3>Vurderingsapp v3.0.5</h3>
+                <h3>Vurderingsapp v3.1.0</h3>
                 <p><strong>Utvikla av:</strong> Hans Petter Brunstad Sørensen, Alpindata</p>
-                <p><strong>Versjon:</strong> 3.0.5</p>
+                <p><strong>Versjon:</strong> 3.1.0</p>
                 <p><strong>Dato:</strong> 2026-01-21</p>
                 
                 <h4 style="margin-top: 1.5rem;">Nye funksjonar i v3:</h4>

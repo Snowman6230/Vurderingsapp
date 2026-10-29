@@ -428,12 +428,5 @@ window.arkiverVurderingar = arkiverVurderingar;
 window.hentArkiverteVurderingar = hentArkiverteVurderingar;
 window.hentArkiverteSkoleaar = hentArkiverteSkoleaar;
 
-// Automatisk migrer database ved lasting
-document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        await migrerDatabase();
-        console.log('✓ Database migrert til versjon', NEW_DB_VERSION);
-    } catch (error) {
-        console.error('✗ Feil ved database-migrering:', error);
-    }
-});
+// Migrering blir kalla frå hovud-init i app.js (konsolidert init B3)
+// window.migrerDatabase() er tilgjengeleg via eksport over

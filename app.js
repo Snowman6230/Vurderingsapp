@@ -383,19 +383,37 @@ const autoforslagRegler = {
     }
 };
 
-// Initialiser app
+// Initialiser app — éin konsolidert init (B3)
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 Startar Vurderingsapp v3.1.0...');
+
+    // 1. Database-migrering først
+    try {
+        if (window.migrerDatabase) {
+            await window.migrerDatabase();
+            console.log('✅ Database migrert');
+        }
+    } catch (e) { console.warn('⚠️ Database-migrering feila:', e); }
+
+    // 2. i18n
+    try {
+        if (window.i18n) {
+            await window.i18n.init();
+            console.log('✅ i18n initialisert');
+        }
+        const languageBtn = document.getElementById('language-btn');
+        if (languageBtn && window.showLanguagePicker) {
+            languageBtn.addEventListener('click', () => window.showLanguagePicker());
+        }
+    } catch (e) { console.warn('⚠️ i18n feila:', e); }
+
+    // 3. Hovud-init
     await initDB();
     await initApp();
     setupEventListeners();
-    
-    
 
-console.log('🚀 Startar Vurderingsapp v3.0.5...');
 
-console.log('✅ Database initialisert');
-console.log('✅ Hovudapp initialisert');
-console.log('✅ Event listeners satt opp');
+console.log('✅ Database initialisert, hovudapp og event listeners satt opp');
 
 // v3-init (konsolidert initialisering)
 try { initDarkMode(); console.log('✅ Mørk modus initialisert'); } catch (e) { console.warn('⚠️ Mørk modus feila:', e); }
@@ -438,11 +456,12 @@ document.querySelectorAll('input[name="graftype"]').forEach(radio => {
 // Eksport
 document.getElementById('eksport-excel')?.addEventListener('click', eksporterTilExcel);
 document.getElementById('eksport-pdf')?.addEventListener('click', eksporterTilPDF);
+document.getElementById('eksport-word')?.addEventListener('click', eksporterTilWord);
 
 // Ferdigheits-UI (ikon og fargar)
 try { leggTilFerdighetsIkoner(); fargekodFerdigheter(); } catch (e) {}
 
-console.log('🎉 Vurderingsapp v3.0.5 fullstendig lasta!');
+console.log('🎉 Vurderingsapp v3.1.0 fullstendig lasta!');
     const temaEl = document.getElementById('tema');
     const fokusEl = document.getElementById('fokus');
     if (temaEl) temaEl.addEventListener('input', oppdaterTekstforslag);
@@ -1291,11 +1310,12 @@ async function visVurderingsskjema() {
         oppdaterAutoKommentarVedEndring();
     });
 
-    // Event listener for kompetansemål-endring
+    // Event listener for kompetansemål-endring (C2: auto-forslag)
     const kmSel = document.getElementById("kompetansemaal");
     if (kmSel) {
         kmSel.addEventListener("change", () => {
             oppdaterVerbHjelp();
+            oppdaterAutoForslag();
             oppdaterAutoKommentarVedEndring();
         });
     }
@@ -5228,6 +5248,7 @@ async function oppdaterGrafikkStatistikk() {
     oppdaterFerdigheterGraf(vurderinger);
     oppdaterHeatmap(vurderinger);
     oppdaterTrendGraf(vurderinger);
+    oppdaterVerbFordelingGraf(vurderinger);
 }
 
 // Oppdater statistikk-kort
@@ -5516,6 +5537,125 @@ function getFerdighetsIkon(ferdighet) {
     return ikoner[ferdighet] || '';
 }
 
+// ============ VERB-FORDELING GRAF (C1) ============
+
+let verbFordelingGraf = null;
+
+function oppdaterVerbFordelingGraf(vurderinger) {
+    const canvas = document.getElementById('verb-fordeling-graf');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+
+    // Tell verb-bruk frå vurderingane
+    const verbTelling = {};
+    vurderinger.forEach(v => {
+        if (v.verb && Array.isArray(v.verb)) {
+            v.verb.forEach(verb => {
+                verbTelling[verb] = (verbTelling[verb] || 0) + 1;
+            });
+        }
+        // Støtt også v.verbFunn (brukt i nokre vurderingar)
+        if (v.verbFunn && Array.isArray(v.verbFunn)) {
+            v.verbFunn.forEach(verb => {
+                verbTelling[verb] = (verbTelling[verb] || 0) + 1;
+            });
+        }
+    });
+
+    // Sorter etter frekvens og ta topp 15
+    const sortert = Object.entries(verbTelling)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 15);
+
+    if (sortert.length === 0) {
+        canvas.style.display = 'none';
+        const noDataEl = canvas.parentElement?.querySelector('.no-data-msg');
+        if (!noDataEl) {
+            const msg = document.createElement('p');
+            msg.className = 'no-data-msg';
+            msg.textContent = 'Ingen verb registrert i vurderingane';
+            msg.style.cssText = 'text-align:center; color:#95a5a6; padding:1rem;';
+            canvas.parentElement?.appendChild(msg);
+        }
+        return;
+    }
+
+    canvas.style.display = 'block';
+    const noDataEl = canvas.parentElement?.querySelector('.no-data-msg');
+    if (noDataEl) noDataEl.remove();
+
+    if (verbFordelingGraf) verbFordelingGraf.destroy();
+
+    const fargar = sortert.map((_, i) => {
+        const hue = (i * 24) % 360;
+        return `hsla(${hue}, 65%, 55%, 0.8)`;
+    });
+
+    verbFordelingGraf = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: sortert.map(([verb]) => verb),
+            datasets: [{
+                label: 'Bruk',
+                data: sortert.map(([, count]) => count),
+                backgroundColor: fargar,
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                title: { display: false }
+            },
+            scales: {
+                x: { beginAtZero: true, ticks: { stepSize: 1 } }
+            }
+        }
+    });
+}
+
+// ============ DIAGRAM-EKSPORT TIL PNG (C1) ============
+
+function eksporterGrafSomPNG(canvasId, filnavn) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) {
+        visToast('Fann ikkje diagrammet', 'error');
+        return;
+    }
+
+    const link = document.createElement('a');
+    link.download = filnavn || `diagram_${new Date().toISOString().split('T')[0]}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+
+    visToast('Diagram eksportert som PNG!', 'success');
+}
+
+function eksporterAlleGrafar() {
+    const grafar = [
+        { id: 'ferdigheter-graf', namn: 'ferdigheter_fordeling' },
+        { id: 'trend-graf', namn: 'trend_utvikling' },
+        { id: 'verb-fordeling-graf', namn: 'verb_fordeling' }
+    ];
+
+    let eksportert = 0;
+    grafar.forEach(g => {
+        const canvas = document.getElementById(g.id);
+        if (canvas && canvas.style.display !== 'none') {
+            eksporterGrafSomPNG(g.id, `${g.namn}_${new Date().toISOString().split('T')[0]}.png`);
+            eksportert++;
+        }
+    });
+
+    if (eksportert === 0) {
+        visToast('Ingen diagram å eksportere', 'error');
+    }
+}
+
 // Elevgraf med valgfrie typer
 async function visElevGraf(elevId) {
     const container = document.getElementById('elev-grafikk-container');
@@ -5725,10 +5865,10 @@ function tegnElevGraf(vurderinger, type) {
 
 // Eksporter til Excel
 async function eksporterTilExcel() {
-    const klasse = document.getElementById('oversikt-faggruppe')?.value || '';
-    const fag = document.getElementById('oversikt-fag')?.value || '';
-    const skoleaar = document.getElementById('oversikt-skoleaar')?.value || '';
-    const semester = document.getElementById('oversikt-semester')?.value || '';
+    const klasse = document.getElementById('grafikk-faggruppe')?.value || '';
+    const fag = document.getElementById('grafikk-fag')?.value || '';
+    const skoleaar = document.getElementById('grafikk-skoleaar')?.value || '';
+    const semester = '';
     
     if (!klasse || !fag) {
         visMelding('Vel klasse og fag først', 'error');
@@ -5789,11 +5929,11 @@ async function eksporterTilExcel() {
 // Eksporter til PDF
 async function eksporterTilPDF() {
     const { jsPDF } = window.jspdf;
-    
-    const klasse = document.getElementById('oversikt-faggruppe')?.value || '';
-    const fag = document.getElementById('oversikt-fag')?.value || '';
-    const skoleaar = document.getElementById('oversikt-skoleaar')?.value || '';
-    const semester = document.getElementById('oversikt-semester')?.value || '';
+
+    const klasse = document.getElementById('grafikk-faggruppe')?.value || '';
+    const fag = document.getElementById('grafikk-fag')?.value || '';
+    const skoleaar = document.getElementById('grafikk-skoleaar')?.value || '';
+    const semester = '';
     
     if (!klasse || !fag) {
         visMelding('Vel klasse og fag først', 'error');
@@ -5854,6 +5994,156 @@ async function eksporterTilPDF() {
     doc.save(filnavn);
     
     visMelding('PDF-fil lasta ned!', 'success');
+}
+
+// ============ EKSPORT TIL WORD (.docx) (C3) ============
+
+async function eksporterTilWord() {
+    const klasse = document.getElementById('grafikk-faggruppe')?.value || '';
+    const fag = document.getElementById('grafikk-fag')?.value || '';
+    const skoleaar = document.getElementById('grafikk-skoleaar')?.value || '';
+    const semester = '';
+
+    if (!klasse || !fag) {
+        visMelding('Vel klasse og fag først', 'error');
+        return;
+    }
+
+    let vurderinger = await hentAlleVurderingar();
+
+    vurderinger = vurderinger.filter(v =>
+        v.faggruppe === klasse &&
+        v.fag === fag &&
+        (!skoleaar || v.skoleaar === skoleaar) &&
+        (!semester || v.semester === semester)
+    );
+
+    if (vurderinger.length === 0) {
+        visMelding('Ingen vurderingar å eksportere', 'error');
+        return;
+    }
+
+    // Bygg HTML som Word kan opne
+    let html = `<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<style>
+    body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; margin: 2cm; }
+    h1 { font-size: 16pt; color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 0.3em; }
+    h2 { font-size: 13pt; color: #34495e; margin-top: 1.5em; }
+    table { border-collapse: collapse; width: 100%; margin-top: 0.5em; }
+    th { background-color: #2c3e50; color: white; padding: 6pt 8pt; text-align: left; font-size: 10pt; }
+    td { border: 1px solid #bdc3c7; padding: 5pt 8pt; font-size: 10pt; }
+    tr:nth-child(even) { background-color: #f8f9fa; }
+    .meta { color: #7f8c8d; font-size: 10pt; margin-bottom: 0.5em; }
+    .statistikk { margin: 1em 0; padding: 0.8em; background: #ecf0f1; border-radius: 4pt; }
+    .statistikk span { margin-right: 2em; }
+    .hoy { color: #27ae60; font-weight: bold; }
+    .middels { color: #f39c12; font-weight: bold; }
+    .lav { color: #e74c3c; font-weight: bold; }
+</style>
+</head>
+<body>`;
+
+    // Tittel
+    html += `<h1>Vurderingsrapport — ${escapeHtml(klasse)} — ${escapeHtml(fag)}</h1>`;
+    html += `<p class="meta">Skoleår: ${escapeHtml(skoleaar || 'Alle')} &nbsp;|&nbsp; Semester: ${escapeHtml(semester || 'Alle')}</p>`;
+    html += `<p class="meta">Generert: ${new Date().toLocaleDateString('no-NO')}</p>`;
+
+    // Statistikk
+    const totalt = vurderinger.length;
+    const hTall = vurderinger.filter(v => v.vurdering === 'H').length;
+    const mTall = vurderinger.filter(v => v.vurdering === 'M').length;
+    const lTall = vurderinger.filter(v => v.vurdering === 'L').length;
+    const elevarSet = new Set(vurderinger.map(v => v.elevId));
+
+    html += `<div class="statistikk">`;
+    html += `<strong>Oppsummering:</strong><br>`;
+    html += `<span>Elevar: ${elevarSet.size}</span>`;
+    html += `<span>Vurderingar: ${totalt}</span>`;
+    html += `<span class="hoy">Høg: ${hTall} (${totalt > 0 ? Math.round(hTall/totalt*100) : 0}%)</span>`;
+    html += `<span class="middels">Middels: ${mTall} (${totalt > 0 ? Math.round(mTall/totalt*100) : 0}%)</span>`;
+    html += `<span class="lav">Låg: ${lTall} (${totalt > 0 ? Math.round(lTall/totalt*100) : 0}%)</span>`;
+    html += `</div>`;
+
+    // Hovudtabell
+    html += `<h2>Alle vurderingar</h2>`;
+    html += `<table>`;
+    html += `<tr><th>Elev</th><th>Dato</th><th>Tema</th><th>Vurdering</th><th>Ferdigheiter</th><th>Kommentar</th></tr>`;
+
+    for (const v of vurderinger) {
+        const elev = await hentElev(v.elevId);
+        const elevNavn = elev ? elev.namn || elev.navn || 'Ukjend' : 'Ukjend';
+
+        const ferdStr = v.ferdigheter
+            ? Object.entries(v.ferdigheter).map(([k, val]) => `${k}: ${val}`).join(', ')
+            : 'Ingen';
+
+        const vurdKlasse = v.vurdering === 'H' ? 'hoy' : v.vurdering === 'L' ? 'lav' : 'middels';
+
+        html += `<tr>`;
+        html += `<td>${escapeHtml(elevNavn)}</td>`;
+        html += `<td>${escapeHtml(v.dato || '')}</td>`;
+        html += `<td>${escapeHtml(v.tema || '')}</td>`;
+        html += `<td class="${vurdKlasse}">${escapeHtml(v.vurdering || '')}</td>`;
+        html += `<td>${escapeHtml(ferdStr)}</td>`;
+        html += `<td>${escapeHtml(v.kommentar || '')}</td>`;
+        html += `</tr>`;
+    }
+
+    html += `</table>`;
+
+    // Ferdigheitssamandrag per elev
+    html += `<h2>Ferdigheiter per elev</h2>`;
+    html += `<table>`;
+    html += `<tr><th>Elev</th><th>Muntleg</th><th>Skriftleg</th><th>Lesing</th><th>Rekning</th><th>Digital</th><th>Ant. vurd.</th></tr>`;
+
+    for (const elevId of elevarSet) {
+        const elev = await hentElev(elevId);
+        const elevNavn = elev ? elev.namn || elev.navn || 'Ukjend' : 'Ukjend';
+        const elevVurd = vurderinger.filter(v => v.elevId === elevId);
+
+        const ferdigheter = ['Muntlig', 'Skrive', 'Lese', 'Rekne', 'Digital'];
+        const ferdStr = ferdigheter.map(f => {
+            const verdiar = elevVurd.filter(v => v.ferdigheter && v.ferdigheter[f]).map(v => v.ferdigheter[f]);
+            if (verdiar.length === 0) return '-';
+            const h = verdiar.filter(v => v === 'H').length;
+            const m = verdiar.filter(v => v === 'M').length;
+            const l = verdiar.filter(v => v === 'L').length;
+            return `H:${h} M:${m} L:${l}`;
+        });
+
+        html += `<tr>`;
+        html += `<td>${escapeHtml(elevNavn)}</td>`;
+        ferdStr.forEach(s => { html += `<td>${s}</td>`; });
+        html += `<td>${elevVurd.length}</td>`;
+        html += `</tr>`;
+    }
+
+    html += `</table>`;
+    html += `</body></html>`;
+
+    // Last ned som .doc (HTML som Word kan opne)
+    const blob = new Blob(['﻿' + html], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Vurderingar_${klasse}_${fag}_${new Date().toISOString().split('T')[0]}.doc`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    visMelding('Word-fil lasta ned!', 'success');
+}
+
+// Hjelpefunksjon for HTML-escaping
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // ============ AUTOSØK MED FUSE.JS ============
@@ -6008,37 +6298,170 @@ function fargekodFerdigheter() {
     });
 }
 
-// ============ AUTOMATISK FERDIGHETSFLAGGING ============
+// ============ AUTOMATISK FERDIGHETSFLAGGING (C2) ============
 
-// Foreslå ferdigheter basert på kompetansemål
+// Nøkkelord-reglar for grunnleggjande ferdigheiter
+const FERDIGHET_NØKKELORD = {
+    munnleg: [
+        'presentere', 'formidle', 'drøfte', 'diskutere', 'argumentere',
+        'framføre', 'kommunisere', 'munnleg', 'munnlig', 'samtale',
+        'fortelje', 'fortelle', 'tale', 'dialog', 'debatt', 'intervju',
+        'lytte', 'ytre', 'uttrykkje', 'uttrykke', 'forklare munnleg'
+    ],
+    skriftleg: [
+        'skrive', 'formulere', 'utforme', 'forfatte', 'notere',
+        'skriftleg', 'skriftlig', 'tekst', 'rapport', 'essay',
+        'logg', 'dagbok', 'brev', 'artikkel', 'samandrag', 'sammendrag',
+        'dokumentere skriftleg', 'referat'
+    ],
+    lesing: [
+        'lese', 'tolke', 'analysere', 'utforske', 'granske',
+        'kjelde', 'kilde', 'tekst', 'lesing', 'forstå',
+        'tyde', 'kartlegge', 'samanlikne', 'sammenligne', 'kritisk lesing',
+        'vurdere kjelder', 'vurdere kilder', 'kjeldekritikk', 'kildekritikk'
+    ],
+    rekning: [
+        'rekne', 'berekne', 'beregne', 'statistikk', 'tal',
+        'tabell', 'diagram', 'prosent', 'rekning', 'regning',
+        'måle', 'estimere', 'kalkulere', 'matematisk', 'kvantitativ',
+        'areal', 'volum', 'avstand', 'skala', 'grafisk framstilling'
+    ],
+    digital: [
+        'digital', 'nett', 'teknologi', 'IKT', 'programvare',
+        'database', 'kart', 'GIS', 'rekneark', 'regneark',
+        'presentasjon', 'digitale verktøy', 'nettressurs', 'multimedia',
+        'simulering', 'modellering', 'digitalt', 'app', 'programm'
+    ]
+};
+
+// Nøkkelord-reglar for verb-matching mot kompetansemål
+const VERB_NØKKELORD = {
+    'utforske': ['utforsk', 'undersøk', 'finn ut', 'oppdage'],
+    'drøfte': ['drøft', 'diskuter', 'vurder ulike', 'veg mot'],
+    'vurdere': ['vurder', 'evaluer', 'bedøm', 'ta stilling'],
+    'analysere': ['analys', 'gransks', 'del opp', 'undersøk'],
+    'reflektere': ['reflekter', 'tenk over', 'tenk kritisk'],
+    'beskrive': ['beskriv', 'skildra', 'fortel om', 'gjer greie'],
+    'forklare': ['forklar', 'gjer greie', 'gje att'],
+    'presentere': ['presenter', 'framstill', 'vis fram', 'legg fram'],
+    'samanlikne': ['samanlikn', 'samanstill', 'sammenlikn', 'jamfør'],
+    'argumentere': ['argument', 'grunngi', 'grunngjev', 'forsvar'],
+    'bruke': ['bruk', 'nytt', 'anvend', 'ta i bruk'],
+    'lage': ['lag', 'skap', 'produser', 'utvikl'],
+    'tolke': ['tolk', 'les', 'forstå', 'tyd'],
+    'dokumentere': ['dokumenter', 'registrer', 'noter'],
+    'kommunisere': ['kommuniser', 'formidl', 'del', 'uttryk'],
+    'berekne': ['berekn', 'beregn', 'rekn', 'kalkuler']
+};
+
+/**
+ * Foreslå grunnleggjande ferdigheiter basert på kompetansemål-tekst
+ * Returnerer array med ferdighet-id-ar (munnleg, skriftleg, lesing, rekning, digital)
+ */
 function forslaFerdigheter(kompetansemaalTekst) {
     if (!kompetansemaalTekst) return [];
-    
+
     const tekst = kompetansemaalTekst.toLowerCase();
     const forslag = [];
-    
-    // Mønstergjenkjenning for ferdigheter
-    if (tekst.includes('presentere') || tekst.includes('formidle') || tekst.includes('drøfte')) {
-        forslag.push('Muntlig');
+
+    for (const [ferdighet, nøkkelord] of Object.entries(FERDIGHET_NØKKELORD)) {
+        for (const ord of nøkkelord) {
+            if (tekst.includes(ord.toLowerCase())) {
+                forslag.push(ferdighet);
+                break;
+            }
+        }
     }
-    
-    if (tekst.includes('skrive') || tekst.includes('formulere') || tekst.includes('utforme')) {
-        forslag.push('Skrive');
-    }
-    
-    if (tekst.includes('lese') || tekst.includes('utforske') || tekst.includes('analysere')) {
-        forslag.push('Lese');
-    }
-    
-    if (tekst.includes('rekne') || tekst.includes('beregne') || tekst.includes('statistikk')) {
-        forslag.push('Rekne');
-    }
-    
-    if (tekst.includes('digital') || tekst.includes('nett') || tekst.includes('teknologi')) {
-        forslag.push('Digital');
-    }
-    
+
     return [...new Set(forslag)];
+}
+
+/**
+ * Foreslå verb basert på kompetansemål-tekst
+ * Returnerer array med { verb, treff } objekt
+ */
+function forslaVerb(kompetansemaalTekst) {
+    if (!kompetansemaalTekst) return [];
+
+    const tekst = kompetansemaalTekst.toLowerCase();
+    const forslag = [];
+
+    for (const [verb, nøkkelord] of Object.entries(VERB_NØKKELORD)) {
+        for (const ord of nøkkelord) {
+            if (tekst.includes(ord.toLowerCase())) {
+                forslag.push({ verb, treff: ord });
+                break;
+            }
+        }
+    }
+
+    // Sjekk også STANDARD_VERB frå verbbibliotek.js
+    if (typeof STANDARD_VERB !== 'undefined') {
+        for (const kategori in STANDARD_VERB) {
+            for (const v of STANDARD_VERB[kategori]) {
+                if (tekst.includes(v.verb.toLowerCase()) && !forslag.some(f => f.verb === v.verb)) {
+                    forslag.push({ verb: v.verb, treff: v.verb });
+                }
+            }
+        }
+    }
+
+    return forslag;
+}
+
+/**
+ * Oppdater UI med auto-forslag når kompetansemål blir valt (C2)
+ * Kryssar av relevante ferdigheiter og viser verb-forslag
+ */
+function oppdaterAutoForslag() {
+    const kmSel = document.getElementById("kompetansemaal");
+    if (!kmSel) return;
+
+    const opt = kmSel.selectedOptions?.[0];
+    const tekst = opt ? (opt.title || opt.textContent || "") : "";
+
+    if (!tekst || !tekst.trim()) return;
+
+    // 1. Auto-foreslå ferdigheiter
+    const forslagFerdigheiter = forslaFerdigheter(tekst);
+    if (forslagFerdigheiter.length > 0) {
+        document.querySelectorAll('.ferdighet-check').forEach(check => {
+            if (forslagFerdigheiter.includes(check.value) && !check.checked) {
+                check.checked = true;
+            }
+        });
+        oppdaterValgteFerdigheter();
+    }
+
+    // 2. Auto-foreslå verb — vis i verb-hjelp boks
+    const forslagVerbListe = forslaVerb(tekst);
+    const box = document.getElementById("verb-hjelp");
+    if (box && forslagVerbListe.length > 0) {
+        // Vis både verb frå tekst og foreslåtte verb
+        const verbFunn = finnVerbaItekst(tekst);
+
+        let html = '';
+        if (verbFunn.length > 0) {
+            html += `💡 <strong>Verb i kompetansemålet:</strong><br>`;
+            html += verbFunn.map(v => {
+                const fork = VERB_ORDBOK[v] || "";
+                return `• <strong>${v}</strong>: ${fork}`;
+            }).join("<br>");
+        }
+
+        // Legg til foreslåtte ferdigheiter
+        if (forslagFerdigheiter.length > 0) {
+            const ferdigheitNamn = {
+                munnleg: '📣 Muntleg', skriftleg: '✍️ Skriftleg',
+                lesing: '📖 Lesing', rekning: '🔢 Rekning', digital: '💻 Digital'
+            };
+            html += `<br><br>🎯 <strong>Foreslåtte ferdigheiter:</strong> `;
+            html += forslagFerdigheiter.map(f => ferdigheitNamn[f] || f).join(', ');
+        }
+
+        box.style.display = "block";
+        box.innerHTML = html;
+    }
 }
 
 // ============ DUMMY-FUNKSJONAR FOR BAKOVERKOMPATIBILITET ============
